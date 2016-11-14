@@ -12,7 +12,6 @@ smart_h
 smart_open(smart_protocol_e protocol, char *devname)
 {
 
-	printf("opening %s\n", devname);
 	return device_open(protocol, devname);
 }
 
