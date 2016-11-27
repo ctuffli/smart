@@ -14,10 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /*
- * Dexter wants:
- *  1) by default, print attribute and raw (ie 2 values) in decimal
- *  2) add option to print out threshold values
- *  3) add option to print out hex
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +62,7 @@ main(int argc, char *argv[])
 			do_hex = true;
 			break;
 		case 'a':
+			// TODO use realloc() to create an array of attr to pass to smart_read() ?
 			attr = atoi(optarg);
 			break;
 		default:

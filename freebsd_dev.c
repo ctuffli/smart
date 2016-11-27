@@ -22,10 +22,11 @@
 #include <camlib.h>
 
 #include "libsmart.h"
+#include "libsmart_priv.h"
 
 struct fbsd_smart {
+	smart_t	common;
 	struct cam_device *camdev;
-	smart_protocol_e protocol;
 };
 
 smart_h
@@ -35,7 +36,7 @@ device_open(smart_protocol_e protocol, char *devname)
 
 	h = malloc(sizeof(struct fbsd_smart));
 	if (h != NULL) {
-		h->protocol = protocol;
+		h->common.protocol = protocol;
 		h->camdev = cam_open_device(devname, O_RDWR);
 		if (h->camdev == NULL) {
 			printf("%s: error opening %s - %s\n",
@@ -117,12 +118,12 @@ device_read(smart_h h, void *buf, size_t bsize)
 
 	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
-	switch (fsmart->protocol) {
+	switch (fsmart->common.protocol) {
 	case SMART_PROTO_ATA:
 		__device_read_ata(h, ccb, buf, bsize);
 		break;
 	default:
-		warn("unsupported protocol %d", fsmart->protocol);
+		warn("unsupported protocol %d", fsmart->common.protocol);
 		cam_freeccb(ccb);
 		return -1;
 	}

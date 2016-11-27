@@ -21,6 +21,7 @@
 typedef void * smart_h;
 
 typedef enum {
+	SMART_PROTO_AUTO,
 	SMART_PROTO_ATA,
 	SMART_PROTO_SCSI,
 	SMART_PROTO_NVME,

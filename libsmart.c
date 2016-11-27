@@ -18,6 +18,7 @@
 #include <stdbool.h>
 
 #include "libsmart.h"
+#include "libsmart_priv.h"
 
 extern smart_h device_open(smart_protocol_e, char *);
 extern void device_close(smart_h);
@@ -88,6 +89,9 @@ smart_print(smart_h h, smart_buf_t *sb, int32_t which, uint32_t flags)
 	if (flags & 0x2)
 		do_thresh = true;
 
+	/*
+	 * XXX TODO this is ATA specific
+	 */
 	/* Decimal or hex */
 	if (do_hex) {
 		fmt = "%#01.1x %#01.1lx\n";
