@@ -36,7 +36,7 @@ usage(const char *name)
 	printf("Usage: %s [-htx] [-a <attribute id>]\n", name);
 	printf("\t-h, --help\n");
 	printf("\t-t, --threshold : also print out the threshold values\n");
-	printf("\t-x, --hex : print the values out in hexidecimal\n");
+	printf("\t-x, --hex : print the values out in hexadecimal\n");
 	printf("\t-a, --attribute : print a specific attribute\n");
 }
 
