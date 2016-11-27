@@ -74,6 +74,18 @@ smart_free(smart_buf_t *sb)
 	free(sb);
 }
 
+/*
+ * XXX TODO this is ATA specific
+ */
+#define ID_HEX		"%#01.1x "
+#define ID_DEC		"%d "
+
+#define THRESH_HEX	"%#01.1x %#01.1x %#01.1x %#01.1x "
+#define	THRESH_DEC	"%d %d %d %d "
+
+#define RAW_HEX		"%#01.1lx\n"
+#define RAW_DEC		"%ld\n"
+
 void
 smart_print(smart_h h, smart_buf_t *sb, int32_t which, uint32_t flags)
 {
@@ -88,18 +100,6 @@ smart_print(smart_h h, smart_buf_t *sb, int32_t which, uint32_t flags)
 
 	if (flags & 0x2)
 		do_thresh = true;
-
-	/*
-	 * XXX TODO this is ATA specific
-	 */
-	/* Decimal or hex */
-	if (do_hex) {
-		fmt = "%#01.1x %#01.1lx\n";
-		lfmt = "%#01.1x %#01.1x %#01.1x %#01.1x %#01.1x %#01.1lx\n";
-	} else {
-		fmt = "%d %ld\n";
-		lfmt = "%d %d %d %d %d %ld\n";
-	}
 
 	b = sb->b;
 
@@ -117,10 +117,14 @@ smart_print(smart_h h, smart_buf_t *sb, int32_t which, uint32_t flags)
 					b[6] << 8 |
 					b[5];
 
+				if (which == -1)
+					printf(do_hex ? ID_HEX : ID_DEC, b[0]);
+
 				if (do_thresh)
-					printf(lfmt, b[0], b[1], b[2], b[3], b[4], raw);
-				else
-					printf(fmt, b[0], raw);
+					printf(do_hex ? THRESH_HEX : THRESH_DEC,
+							b[1], b[2], b[3], b[4]);
+
+				printf(do_hex ? RAW_HEX : RAW_DEC, raw);
 
 				if (which != -1)
 					break;
