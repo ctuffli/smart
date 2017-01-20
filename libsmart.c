@@ -110,12 +110,11 @@ smart_print(smart_h h, smart_buf_t *sb, int32_t which, uint32_t flags)
 			uint64_t raw = 0UL;
 
 			if ((which == -1) || (*b == which)) {
-				raw =  (uint64_t)b[10] << 40 |
-					 (uint64_t)b[9] << 32 |
-					b[8] << 24 |
-					b[7] << 16 |
-					b[6] << 8 |
-					b[5];
+				raw = (b[10] << 8) | b[9];
+				raw <<= 16;
+				raw |= (b[8] << 8) | b[7];
+				raw <<= 16;
+				raw |= (b[6] << 8) | b[5];
 
 				if (which == -1)
 					printf(do_hex ? ID_HEX : ID_DEC, b[0]);
