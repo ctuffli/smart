@@ -30,9 +30,9 @@ typedef enum {
 
 typedef struct {
 	smart_protocol_e protocol;
-	void *b;
-	size_t bsize;
-	uint32_t vcount;
+	void *b;		// buffer of raw data
+	size_t bsize;		// buffer size
+	uint32_t attr_count;	// number of SMART attributes
 } smart_buf_t;
 
 smart_h smart_open(smart_protocol_e p, char *devname);
