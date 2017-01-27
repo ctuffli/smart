@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -75,7 +75,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	h = smart_open(SMART_PROTO_ATA, argv[0]);
+	h = smart_open(SMART_PROTO_AUTO, argv[0]);
 
 	if (h == NULL) {
 		printf("device open failed %s\n", argv[0]);

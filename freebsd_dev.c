@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -29,6 +29,8 @@ struct fbsd_smart {
 	struct cam_device *camdev;
 };
 
+static smart_protocol_e __device_get_proto(struct fbsd_smart *);
+
 smart_h
 device_open(smart_protocol_e protocol, char *devname)
 {
@@ -36,7 +38,7 @@ device_open(smart_protocol_e protocol, char *devname)
 
 	h = malloc(sizeof(struct fbsd_smart));
 	if (h != NULL) {
-		h->common.protocol = protocol;
+		h->common.protocol = SMART_PROTO_MAX;
 		h->camdev = cam_open_device(devname, O_RDWR);
 		if (h->camdev == NULL) {
 			printf("%s: error opening %s - %s\n",
@@ -44,6 +46,16 @@ device_open(smart_protocol_e protocol, char *devname)
 					cam_errbuf);
 			free(h);
 			h = NULL;
+		} else {
+			smart_protocol_e proto = __device_get_proto(h);
+
+			if ((protocol == SMART_PROTO_AUTO) ||
+					(protocol == proto)) {
+				h->common.protocol = proto;
+			} else {
+				printf("%s: protocol mismatch %d vs %d\n", __func__,
+						protocol, proto);
+			}
 		}
 	}
 
@@ -141,3 +153,55 @@ device_read(smart_h h, void *buf, size_t bsize)
 
 	return 0;
 }
+
+/**
+ * Retrieve the device protocol type via the transport settings
+ *
+ * @return protocol type or SMART_PROTO_MAX on error
+ */
+static smart_protocol_e
+__device_get_proto(struct fbsd_smart *fsmart)
+{
+	smart_protocol_e proto = SMART_PROTO_MAX;
+	union ccb *ccb;
+
+	if (!fsmart || !fsmart->camdev) {
+		warn("Bad handle %p", fsmart);
+		return proto;
+	}
+
+	ccb = cam_getccb(fsmart->camdev);
+	if (ccb != NULL) {
+		CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->cts);
+
+		ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		ccb->cts.type = CTS_TYPE_CURRENT_SETTINGS;
+
+		if (cam_send_ccb(fsmart->camdev, ccb) >= 0) {
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+				struct ccb_trans_settings *cts = &ccb->cts;
+
+				switch (cts->protocol) {
+				case PROTO_ATA:
+					proto = SMART_PROTO_ATA;
+					break;
+				case PROTO_SCSI:
+					proto = SMART_PROTO_SCSI;
+					break;
+				case PROTO_NVME:
+					proto = SMART_PROTO_NVME;
+					break;
+				default:
+					printf("%s: unknown protocol %d\n",
+							__func__,
+							cts->protocol);
+				}
+			}
+		}
+
+		cam_freeccb(ccb);
+	}
+
+	return proto;
+}
+
