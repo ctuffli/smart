@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -155,6 +155,25 @@ smart_print(smart_h h, smart_buf_t *sb, int32_t which, uint32_t flags)
 
 		b += 12;
 	}
+}
+
+void
+smart_print_device_info(smart_h h)
+{
+	smart_t *s = h;
+
+	if (!s) {
+		return;
+	}
+
+	if (*s->info.vendor != '\0')
+		printf("Vendor %s\n", s->info.vendor);
+	if (*s->info.device != '\0')
+		printf("Device %s\n", s->info.device);
+	if (*s->info.rev != '\0')
+		printf("Revision %s\n", s->info.rev);
+	if (*s->info.serial != '\0')
+		printf("Serial %s\n", s->info.serial);
 }
 
 static uint32_t

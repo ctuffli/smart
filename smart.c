@@ -27,17 +27,19 @@ static struct option opts[] = {
 	{ "threshold", no_argument, NULL, 't' },
 	{ "hex", no_argument, NULL, 'x' },
 	{ "attribute", required_argument, NULL, 'a' },
+	{ "info", no_argument, NULL, 'i' },
 	{ NULL, 0, NULL, 0 }
 };
 
 void
 usage(const char *name)
 {
-	printf("Usage: %s [-htx] [-a <attribute id>]\n", name);
+	printf("Usage: %s [-htxi] [-a <attribute id>]\n", name);
 	printf("\t-h, --help\n");
 	printf("\t-t, --threshold : also print out the threshold values\n");
 	printf("\t-x, --hex : print the values out in hexadecimal\n");
 	printf("\t-a, --attribute : print a specific attribute\n");
+	printf("\t-i, --info : print general device information\n");
 }
 
 int
@@ -46,11 +48,11 @@ main(int argc, char *argv[])
 	smart_h h;
 	smart_buf_t *sb = NULL;
 	int ch;
-	bool do_thresh = false, do_hex = false;
+	bool do_thresh = false, do_hex = false, do_info = false;
 	int32_t  attr = -1;
 	int rc = EXIT_SUCCESS;
 
-	while ((ch = getopt_long(argc, argv, "htxa:", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "htxa:i", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
 			usage(argv[0]);
@@ -65,6 +67,9 @@ main(int argc, char *argv[])
 		case 'a':
 			// TODO use realloc() to create an array of attr to pass to smart_read() ?
 			attr = atoi(optarg);
+			break;
+		case 'i':
+			do_info = true;
 			break;
 		default:
 			printf("unknown option %c\n", ch);
@@ -81,6 +86,10 @@ main(int argc, char *argv[])
 	if (h == NULL) {
 		printf("device open failed %s\n", argv[0]);
 		return EXIT_FAILURE;
+	}
+
+	if (do_info) {
+		smart_print_device_info(h);
 	}
 
 	if (smart_supported(h)) {

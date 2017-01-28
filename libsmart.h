@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -42,5 +42,6 @@ bool smart_supported(smart_h);
 smart_buf_t *smart_read(smart_h);
 void smart_free(smart_buf_t *);
 void smart_print(smart_h, smart_buf_t *, int32_t, uint32_t);
+void smart_print_device_info(smart_h);
 
 #endif

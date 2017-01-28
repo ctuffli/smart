@@ -213,12 +213,26 @@ __device_get_proto(struct fbsd_smart *fsmart)
 static int32_t
 __device_info_ata(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 {
+	smart_info_t *sinfo = NULL;
+
 	if (!fsmart || !cgd) {
 		return -1;
 	}
 
-	fsmart->common.info.supported = cgd->ident_data.support.command1 &
+	sinfo = &fsmart->common.info;
+	
+	sinfo->supported = cgd->ident_data.support.command1 &
 		ATA_SUPPORT_SMART;
+
+	cam_strvis((uint8_t *)sinfo->device, cgd->ident_data.model,
+			sizeof(cgd->ident_data.model),
+			sizeof(sinfo->device));
+	cam_strvis((uint8_t *)sinfo->rev, cgd->ident_data.revision,
+			sizeof(cgd->ident_data.revision),
+			sizeof(sinfo->rev));
+	cam_strvis((uint8_t *)sinfo->serial, cgd->ident_data.serial,
+			sizeof(cgd->ident_data.serial),
+			sizeof(sinfo->serial));
 
 	return 0;
 }
