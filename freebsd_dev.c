@@ -30,6 +30,7 @@ struct fbsd_smart {
 };
 
 static smart_protocol_e __device_get_proto(struct fbsd_smart *);
+static int32_t __device_get_info(struct fbsd_smart *);
 
 smart_h
 device_open(smart_protocol_e protocol, char *devname)
@@ -38,6 +39,8 @@ device_open(smart_protocol_e protocol, char *devname)
 
 	h = malloc(sizeof(struct fbsd_smart));
 	if (h != NULL) {
+		bzero(h, sizeof(struct fbsd_smart));
+
 		h->common.protocol = SMART_PROTO_MAX;
 		h->camdev = cam_open_device(devname, O_RDWR);
 		if (h->camdev == NULL) {
@@ -53,9 +56,11 @@ device_open(smart_protocol_e protocol, char *devname)
 					(protocol == proto)) {
 				h->common.protocol = proto;
 			} else {
-				printf("%s: protocol mismatch %d vs %d\n", __func__,
-						protocol, proto);
+				printf("%s: protocol mismatch %d vs %d\n",
+						__func__, protocol, proto);
 			}
+
+			__device_get_info(h);
 		}
 	}
 
@@ -205,3 +210,58 @@ __device_get_proto(struct fbsd_smart *fsmart)
 	return proto;
 }
 
+static int32_t
+__device_info_ata(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
+{
+	if (!fsmart || !cgd) {
+		return -1;
+	}
+
+	fsmart->common.info.supported = cgd->ident_data.support.command1 &
+		ATA_SUPPORT_SMART;
+
+	return 0;
+}
+
+/**
+ * Retrieve the device information and use to populate the info structure
+ */
+static int32_t
+__device_get_info(struct fbsd_smart *fsmart)
+{
+	union ccb *ccb;
+	int32_t rc = -1;
+
+	if (!fsmart || !fsmart->camdev) {
+		warn("Bad handle %p", fsmart);
+		return -1;
+	}
+
+	ccb = cam_getccb(fsmart->camdev);
+	if (ccb != NULL) {
+		struct ccb_getdev *cgd = &ccb->cgd;
+
+		CCB_CLEAR_ALL_EXCEPT_HDR(cgd);
+
+		ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+
+		if (cam_send_ccb(fsmart->camdev, ccb) >= 0) {
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+				switch (cgd->protocol) {
+				case PROTO_ATA:
+					rc = __device_info_ata(fsmart, cgd);
+					break;
+				case PROTO_SCSI:
+				case PROTO_NVME:
+					// TODO
+					break;
+				default:
+					printf("%s: unsupported protocol %d\n",
+							__func__, cgd->protocol);
+				}
+			}
+		}
+	}
+
+	return rc;
+}

@@ -17,6 +17,7 @@
 #define _LIBSMART_H
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 typedef void * smart_h;
 
@@ -37,6 +38,7 @@ typedef struct {
 
 smart_h smart_open(smart_protocol_e p, char *devname);
 void smart_close(smart_h);
+bool smart_supported(smart_h);
 smart_buf_t *smart_read(smart_h);
 void smart_free(smart_buf_t *);
 void smart_print(smart_h, smart_buf_t *, int32_t, uint32_t);

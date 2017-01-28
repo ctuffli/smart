@@ -48,6 +48,7 @@ main(int argc, char *argv[])
 	int ch;
 	bool do_thresh = false, do_hex = false;
 	int32_t  attr = -1;
+	int rc = EXIT_SUCCESS;
 
 	while ((ch = getopt_long(argc, argv, "htxa:", opts, NULL)) != -1) {
 		switch (ch) {
@@ -82,20 +83,25 @@ main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	sb = smart_read(h);
-	if (sb) {
-		uint32_t flags = 0;
+	if (smart_supported(h)) {
+		sb = smart_read(h);
 
-		if (do_hex)
-			flags |= 0x1;
-		if (do_thresh)
-			flags |= 0x2;
+		if (sb) {
+			uint32_t flags = 0;
 
-		smart_print(h, sb, attr, flags);
-		smart_free(sb);
+			if (do_hex)
+				flags |= 0x1;
+			if (do_thresh)
+				flags |= 0x2;
+
+			smart_print(h, sb, attr, flags);
+			smart_free(sb);
+		}
+	} else {
+		rc = EXIT_FAILURE;
 	}
 
 	smart_close(h);
 
-	return EXIT_SUCCESS;
+	return rc;
 }

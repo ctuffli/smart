@@ -41,6 +41,19 @@ smart_close(smart_h h)
 	device_close(h);
 }
 
+bool
+smart_supported(smart_h h)
+{
+	smart_t *s = h;
+	bool supported = false;
+
+	if (s) {
+		supported = s->info.supported;
+	}
+
+	return supported;
+}
+
 smart_buf_t *
 smart_read(smart_h h)
 {
