@@ -20,6 +20,7 @@
 #include <err.h>
 #include <errno.h>
 #include <camlib.h>
+#include <cam/scsi/scsi_message.h>
 
 #include "libsmart.h"
 #include "libsmart_priv.h"
@@ -237,6 +238,68 @@ __device_info_ata(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	return 0;
 }
 
+static int32_t
+__device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
+{
+	smart_info_t *sinfo = NULL;
+	union ccb *ccb = NULL;
+	struct scsi_vpd_unit_serial_number *snum = NULL;
+
+	if (!fsmart || !cgd) {
+		return -1;
+	}
+
+	sinfo = &fsmart->common.info;
+
+	cam_strvis((uint8_t *)sinfo->vendor, (uint8_t *)cgd->inq_data.vendor,
+			sizeof(cgd->inq_data.vendor),
+			sizeof(sinfo->vendor));
+	cam_strvis((uint8_t *)sinfo->device, (uint8_t *)cgd->inq_data.product,
+			sizeof(cgd->inq_data.product),
+			sizeof(sinfo->device));
+	cam_strvis((uint8_t *)sinfo->rev, (uint8_t *)cgd->inq_data.revision,
+			sizeof(cgd->inq_data.revision),
+			sizeof(sinfo->rev));
+
+	ccb = cam_getccb(fsmart->camdev);
+	snum = malloc(sizeof(struct scsi_vpd_unit_serial_number));
+	if (!ccb || !snum) {
+		warn("Allocation failure ccb=%p snum=%p", ccb, snum);
+		goto __device_info_scsi_out;
+	}
+
+	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
+
+	scsi_inquiry(&ccb->csio,
+			3, // retries
+			NULL, // callback function
+			MSG_SIMPLE_Q_TAG, // tag action
+			(uint8_t *)snum,
+			sizeof(struct scsi_vpd_unit_serial_number),
+			1, // EVPD
+			SVPD_UNIT_SERIAL_NUMBER, // page code
+			SSD_FULL_SIZE, // sense length
+			5000); // timeout
+
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if ((cam_send_ccb(fsmart->camdev, ccb) >= 0) &&
+			((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+		cam_strvis((uint8_t *)sinfo->serial, snum->serial_num,
+				snum->length,
+				sizeof(sinfo->serial));
+		sinfo->serial[sizeof(sinfo->serial) -1] = '\0';
+	}
+
+__device_info_scsi_out:
+	if (snum)
+		free(snum);
+	if (ccb)
+		cam_freeccb(ccb);
+
+	return 0;
+}
+
 /**
  * Retrieve the device information and use to populate the info structure
  */
@@ -266,6 +329,8 @@ __device_get_info(struct fbsd_smart *fsmart)
 					rc = __device_info_ata(fsmart, cgd);
 					break;
 				case PROTO_SCSI:
+					rc = __device_info_scsi(fsmart, cgd);
+					break;
 				case PROTO_NVME:
 					// TODO
 					break;
