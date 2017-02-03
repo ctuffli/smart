@@ -36,12 +36,29 @@ typedef struct {
 	uint32_t attr_count;	// number of SMART attributes
 } smart_buf_t;
 
+struct smart_map_s;
+
+typedef struct smart_attr_s {
+	uint32_t id;
+	uint32_t bytes;
+	uint32_t flags;
+#define SMART_ATTR_F_BE		0x00000001	/* Attribute is big-endian */
+	void *raw;
+	struct smart_map_s *thresh;		/* Threshold values (if any) */
+} smart_attr_t;
+
+typedef struct smart_map_s {
+	smart_buf_t *sb;
+	uint32_t count;				/* Number of attributes */
+	smart_attr_t attr[];			/* Array of attributes */
+} smart_map_t;
+
 smart_h smart_open(smart_protocol_e p, char *devname);
 void smart_close(smart_h);
 bool smart_supported(smart_h);
-smart_buf_t *smart_read(smart_h);
-void smart_free(smart_buf_t *);
-void smart_print(smart_h, smart_buf_t *, int32_t, uint32_t);
+smart_map_t *smart_read(smart_h);
+void smart_free(smart_map_t *);
+void smart_print(smart_h, smart_map_t *, int32_t, uint32_t);
 void smart_print_device_info(smart_h);
 
 #endif

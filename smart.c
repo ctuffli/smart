@@ -46,7 +46,7 @@ int
 main(int argc, char *argv[])
 {
 	smart_h h;
-	smart_buf_t *sb = NULL;
+	smart_map_t *sm = NULL;
 	int ch;
 	bool do_thresh = false, do_hex = false, do_info = false;
 	int32_t  attr = -1;
@@ -93,9 +93,9 @@ main(int argc, char *argv[])
 	}
 
 	if (smart_supported(h)) {
-		sb = smart_read(h);
+		sm = smart_read(h);
 
-		if (sb) {
+		if (sm) {
 			uint32_t flags = 0;
 
 			if (do_hex)
@@ -103,8 +103,9 @@ main(int argc, char *argv[])
 			if (do_thresh)
 				flags |= 0x2;
 
-			smart_print(h, sb, attr, flags);
-			smart_free(sb);
+			smart_print(h, sm, attr, flags);
+
+			smart_free(sm);
 		}
 	} else {
 		rc = EXIT_FAILURE;
