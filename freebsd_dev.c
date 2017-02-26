@@ -103,20 +103,37 @@ __device_read_ata(smart_h h, union ccb *ccb, void *buf, size_t bsize)
 			/* timeout */5000);
 	ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
 	ccb->ataio.cmd.control = 0;
-/*
-	printf("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-			ccb->ataio.res.status,
-			ccb->ataio.res.error,
-			ccb->ataio.res.lba_low,
-			ccb->ataio.res.lba_mid,
-			ccb->ataio.res.lba_high,
-			ccb->ataio.res.device,
-			ccb->ataio.res.lba_low_exp,
-			ccb->ataio.res.lba_mid_exp,
-			ccb->ataio.res.lba_high_exp,
-			ccb->ataio.res.sector_count,
-			ccb->ataio.res.sector_count_exp);
-*/
+
+	return 0;
+}
+
+static int32_t
+__device_read_nvme(smart_h h, union ccb *ccb, void *buf, size_t bsize)
+{
+	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
+	uint32_t numd = 0;
+
+/* TODO Don't enable until CAM support exists */
+#if 0
+	/* Subtract 1 because NUMD is a zero based value */
+	numd = (sizeof(struct nvme_health_information_page) / sizeof(uint32_t))
+		- 1;
+
+	nvmeio->cmd.opc = NVME_OPC_GET_LOG_PAGE;
+	nvmeio->cmd.nsid = NVME_GLOBAL_NAMESPACE_TAG;
+	nvmeio->cmd.cdw10 = NVME_LOG_HEALTH_INFORMATION | (numd << 16);
+
+	cam_fill_nvmeio(&ccb->nvmeio,
+			/* retries */1,
+			/* cbfcnp */NULL,
+			/* flags */CAM_DIR_IN,
+			/* data_ptr */buf,
+			/* dxfer_len */bsize,
+			/* timeout */5000);
+
+	/* hack to signify this is an Admin command */
+	ccb->ccb_h.xflags = 0x10;
+#endif
 	return 0;
 }
 
@@ -139,6 +156,9 @@ device_read(smart_h h, void *buf, size_t bsize)
 	switch (fsmart->common.protocol) {
 	case SMART_PROTO_ATA:
 		__device_read_ata(h, ccb, buf, bsize);
+		break;
+	case SMART_PROTO_NVME:
+		__device_read_nvme(h, ccb, buf, bsize);
 		break;
 	default:
 		warn("unsupported protocol %d", fsmart->common.protocol);
@@ -300,6 +320,37 @@ __device_info_scsi_out:
 	return 0;
 }
 
+static int32_t
+__device_info_nvme(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
+{
+	smart_info_t *sinfo = NULL;
+
+	if (!fsmart || !cgd) {
+		return -1;
+	}
+
+	sinfo = &fsmart->common.info;
+	
+	sinfo->supported = true;
+
+	if (cgd->nvme_cdata) {
+		/* TODO nvme_cdata and nvme_data appear to be kernel pointers */
+#if 0
+		cam_strvis((uint8_t *)sinfo->device, cgd->nvme_cdata->mn,
+				sizeof(cgd->nvme_cdata->mn),
+				sizeof(sinfo->device));
+		cam_strvis((uint8_t *)sinfo->rev, cgd->nvme_cdata->fr,
+				sizeof(cgd->nvme_cdata->fr),
+				sizeof(sinfo->rev));
+		cam_strvis((uint8_t *)sinfo->serial, cgd->nvme_cdata->sn,
+				sizeof(cgd->nvme_cdata->sn),
+				sizeof(sinfo->serial));
+#endif
+	}
+
+	return 0;
+}
+
 /**
  * Retrieve the device information and use to populate the info structure
  */
@@ -332,7 +383,7 @@ __device_get_info(struct fbsd_smart *fsmart)
 					rc = __device_info_scsi(fsmart, cgd);
 					break;
 				case PROTO_NVME:
-					// TODO
+					rc = __device_info_nvme(fsmart, cgd);
 					break;
 				default:
 					printf("%s: unsupported protocol %d\n",

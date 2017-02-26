@@ -135,8 +135,80 @@ smart_free(smart_map_t *sm)
 #define THRESH_HEX	"%#01.1x %#01.1x %#01.1x %#01.1x "
 #define	THRESH_DEC	"%d %d %d %d "
 
-#define RAW_HEX		"%#01.1lx\n"
-#define RAW_DEC		"%ld\n"
+#define RAW_HEX		"%#01.1x\n"
+#define RAW_DEC		"%d\n"
+
+/* Long integer version of the format macro */
+#define RAW_LHEX	"%#01.1lx\n"
+#define RAW_LDEC	"%ld\n"
+
+static char *
+__smart_u128_str(smart_attr_t *sa)
+{
+	/* log10(x) = log2(x) / log2(10) ~= log2(x) / 3.322 */
+	const uint32_t max_len = 128 / 3 + 1 + 1;
+	static char s[max_len];
+	char *p = s + max_len - 1;
+	uint32_t *a = (uint32_t *)sa->raw;
+	uint64_t r, d;
+	uint32_t last = 0;
+
+	*p-- = '\0';
+
+	do {
+		r = a[3];
+
+		d = r / 10;
+		r = ((r - d * 10) << 32) + a[2];
+		a[3] = d;
+
+		d = r / 10;
+		r = ((r - d * 10) << 32) + a[1];
+		a[2] = d;
+
+		d = r / 10;
+		r = ((r - d * 10) << 32) + a[0];
+		a[1] = d;
+
+		d = r / 10;
+		r = r - d * 10;
+		a[0] = d;
+
+		*p-- = '0' + r;
+	} while (a[0] || a[1] || a[2] || a[3]);
+
+	p++;
+
+	while ((*p == '0') && (p < &s[sizeof(s) - 2]))
+		p++;
+
+	return p;
+}
+
+static void
+__smart_print_thresh(smart_map_t *tm, uint32_t flags)
+{
+	bool do_hex = false;
+	bool do_thresh = false;
+
+	if (!tm) {
+		return;
+	}
+
+	if (flags & 0x1)
+		do_hex = true;
+
+	if (flags & 0x2)
+		do_thresh = true;
+
+	if (do_thresh && tm) {
+		printf(do_hex ? THRESH_HEX : THRESH_DEC,
+				*((uint8_t *)tm->attr[0].raw),
+				*((uint8_t *)tm->attr[1].raw),
+				*((uint8_t *)tm->attr[2].raw),
+				*((uint8_t *)tm->attr[3].raw));
+	}
+}
 
 void
 smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
@@ -165,7 +237,16 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 		bytes = sm->attr[i].bytes;
 
 		if (bytes > 8) {
-			//TODO
+			if (which == -1)
+				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
+
+			if (do_hex)
+				;
+			else
+				printf("%s\n", __smart_u128_str(&sm->attr[i]));
+
 		} else if (bytes > 4) {
 			uint64_t v64 = 0;
 			uint64_t mask = UINT64_MAX;
@@ -185,22 +266,70 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			if (which == -1)
 				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
 
-			if (do_thresh && sm->attr[i].thresh) {
-				smart_map_t *tm = sm->attr[i].thresh;
+			__smart_print_thresh(sm->attr[i].thresh, flags);
 
-				printf(do_hex ? THRESH_HEX : THRESH_DEC,
-						*((uint8_t *)tm->attr[0].raw),
-						*((uint8_t *)tm->attr[1].raw),
-						*((uint8_t *)tm->attr[2].raw),
-						*((uint8_t *)tm->attr[3].raw));
+			printf(do_hex ? RAW_LHEX : RAW_LDEC, v64);
+
+		} else if (bytes > 2) {
+			uint32_t v32 = 0;
+			uint32_t mask = UINT32_MAX;
+
+			bcopy(sm->attr[i].raw, &v32, bytes);
+
+			if (sm->attr[i].flags & SMART_ATTR_F_BE) {
+				v32 = be32toh(v32);
+			} else {
+				v32 = le32toh(v32);
 			}
 
-			printf(do_hex ? RAW_HEX : RAW_DEC, v64);
+			mask >>= 8 * (sizeof(uint32_t) - bytes);
 
-			if (which != -1)
-				break;
+			v32 &= mask;
+
+			if (which == -1)
+				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
+
+			printf(do_hex ? RAW_HEX : RAW_DEC, v32);
+
+		} else if (bytes > 1) {
+			uint16_t v16 = 0;
+			uint16_t mask = UINT16_MAX;
+
+			bcopy(sm->attr[i].raw, &v16, bytes);
+
+			if (sm->attr[i].flags & SMART_ATTR_F_BE) {
+				v16 = be16toh(v16);
+			} else {
+				v16 = le16toh(v16);
+			}
+
+			mask >>= 8 * (sizeof(uint16_t) - bytes);
+
+			v16 &= mask;
+
+			if (which == -1)
+				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
+
+			printf(do_hex ? RAW_HEX : RAW_DEC, v16);
+
+		} else if (bytes > 0) {
+			uint8_t v8 = *((uint8_t *)sm->attr[i].raw);
+
+			if (which == -1)
+				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
+
+			printf(do_hex ? RAW_HEX : RAW_DEC, v8);
 
 		}
+
+		if (which != -1)
+			break;
 	}
 }
 
@@ -236,6 +365,13 @@ __smart_attr_max_ata(smart_buf_t *sb)
 }
 
 static uint32_t
+__smart_attr_max_nvme(smart_buf_t *sb)
+{
+
+	return 0;
+}
+
+static uint32_t
 __smart_attribute_max(smart_buf_t *sb)
 {
 	uint32_t count = 0;
@@ -244,6 +380,9 @@ __smart_attribute_max(smart_buf_t *sb)
 		switch (sb->protocol) {
 		case SMART_PROTO_ATA:
 			count = __smart_attr_max_ata(sb);
+			break;
+		case SMART_PROTO_NVME:
+			count = __smart_attr_max_nvme(sb);
 			break;
 		default:
 			;
@@ -265,6 +404,9 @@ __smart_buffer_size(smart_buf_t *sb)
 		switch (sb->protocol) {
 		case SMART_PROTO_ATA:
 			size = 512;
+			break;
+		case SMART_PROTO_NVME:
+			size = 4096;
 			break;
 		default:
 			size = 0;
@@ -335,6 +477,67 @@ __smart_map_ata(smart_buf_t *sb, smart_map_t *sm)
 	sm->count = i;
 }
 
+#ifndef ARRAYLEN
+#define ARRAYLEN(p) sizeof(p)/sizeof(p[0])
+#endif
+
+#define NVME_VS(mjr,mnr,ter) (((mjr) << 16) | ((mnr) << 8) | (ter))
+#define NVME_VS_1_0	NVME_VS(1,0,0)
+#define NVME_VS_1_1	NVME_VS(1,1,0)
+#define NVME_VS_1_2	NVME_VS(1,2,0)
+#define NVME_VS_1_2_1	NVME_VS(1,2,1)
+#define NVME_VS_1_3	NVME_VS(1,3,0)
+struct {
+	uint32_t off;		/* buffer offset */
+	uint32_t bytes;		/* size in bytes */
+	uint32_t ver;		/* first version available */
+} __smart_nvme_values[] = {
+	{ 0, 1, NVME_VS_1_0 },	// Critical Warning
+	{ 1, 2, NVME_VS_1_0 },	// Temperature
+	{ 3, 1, NVME_VS_1_0 },	// Available Spare
+	{ 4, 1, NVME_VS_1_0 },	// Available Spare Threshold
+	{ 5, 1, NVME_VS_1_0 },	// Percentage Used
+	{ 32, 16, NVME_VS_1_0 },	// Data Units Read
+	{ 48, 16, NVME_VS_1_0 },	// Data Units Written
+	{ 64, 16, NVME_VS_1_0 },	// Host Read Commands
+	{ 80, 16, NVME_VS_1_0 },	// Host Write Commands
+	{ 96, 16, NVME_VS_1_0 },	// Controller Busy Time
+	{ 112, 16, NVME_VS_1_0 },	// Power Cycles
+	{ 128, 16, NVME_VS_1_0 },	// Power On Hours
+	{ 144, 16, NVME_VS_1_0 },	// Unsafe Shutdowns
+	{ 160, 16, NVME_VS_1_0 },	// Media Errors
+	{ 176, 16, NVME_VS_1_0 },	// Number of Error Information Log Entries
+};
+
+/**
+ * NVMe doesn't define attribute IDs like ATA does, but we can
+ * approximate this behavior by treating the byte offset as the
+ * attribute ID.
+ */
+static void
+__smart_map_nvme(smart_buf_t *sb, smart_map_t *sm)
+{
+	uint8_t *b = NULL;
+	uint32_t vs = NVME_VS_1_0;	// XXX assume device is 1.0
+	uint32_t i, a;
+
+	b = sb->b;
+
+	for (i = 0, a = 0; i < ARRAYLEN(__smart_nvme_values); i++) {
+		if (vs >= __smart_nvme_values[i].ver) {
+			sm->attr[a].id = __smart_nvme_values[i].off;
+			sm->attr[a].bytes = __smart_nvme_values[i].bytes;
+			sm->attr[a].flags = 0;
+			sm->attr[a].raw = b + __smart_nvme_values[i].off;
+			sm->attr[a].thresh = NULL;
+
+			a++;
+		}
+	}
+
+	sm->count = a;
+}
+
 /**
  * Create a map of SMART values
  */
@@ -349,6 +552,9 @@ __smart_attribute_map(smart_buf_t *sb, smart_map_t *sm)
 	switch (sb->protocol) {
 	case SMART_PROTO_ATA:
 		__smart_map_ata(sb, sm);
+		break;
+	case SMART_PROTO_NVME:
+		__smart_map_nvme(sb, sm);
 		break;
 	default:
 		sm->count = 0;
