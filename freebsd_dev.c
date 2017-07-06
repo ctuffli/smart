@@ -123,16 +123,13 @@ __device_read_nvme(smart_h h, union ccb *ccb, void *buf, size_t bsize)
 	nvmeio->cmd.nsid = NVME_GLOBAL_NAMESPACE_TAG;
 	nvmeio->cmd.cdw10 = NVME_LOG_HEALTH_INFORMATION | (numd << 16);
 
-	cam_fill_nvmeio(&ccb->nvmeio,
+	cam_fill_nvmeadmin(&ccb->nvmeio,
 			/* retries */1,
 			/* cbfcnp */NULL,
 			/* flags */CAM_DIR_IN,
 			/* data_ptr */buf,
 			/* dxfer_len */bsize,
 			/* timeout */5000);
-
-	/* hack to signify this is an Admin command */
-	ccb->ccb_h.xflags = 0x10;
 #endif
 	return 0;
 }
@@ -323,7 +320,9 @@ __device_info_scsi_out:
 static int32_t
 __device_info_nvme(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 {
+	union ccb *ccb;
 	smart_info_t *sinfo = NULL;
+	struct nvme_controller_data cd;
 
 	if (!fsmart || !cgd) {
 		return -1;
@@ -333,19 +332,38 @@ __device_info_nvme(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	
 	sinfo->supported = true;
 
-	if (cgd->nvme_cdata) {
-		/* TODO nvme_cdata and nvme_data appear to be kernel pointers */
-#if 0
-		cam_strvis((uint8_t *)sinfo->device, cgd->nvme_cdata->mn,
-				sizeof(cgd->nvme_cdata->mn),
-				sizeof(sinfo->device));
-		cam_strvis((uint8_t *)sinfo->rev, cgd->nvme_cdata->fr,
-				sizeof(cgd->nvme_cdata->fr),
-				sizeof(sinfo->rev));
-		cam_strvis((uint8_t *)sinfo->serial, cgd->nvme_cdata->sn,
-				sizeof(cgd->nvme_cdata->sn),
-				sizeof(sinfo->serial));
+	ccb = cam_getccb(fsmart->camdev);
+	if (ccb != NULL) {
+		struct ccb_dev_advinfo *cdai = &ccb->cdai;
+
+		CCB_CLEAR_ALL_EXCEPT_HDR(cdai);
+
+		cdai->ccb_h.func_code = XPT_DEV_ADVINFO;
+		cdai->ccb_h.flags = CAM_DIR_IN;
+		cdai->flags = CDAI_FLAG_NONE;
+#ifdef CDAI_TYPE_NVME_CNTRL
+		cdai->buftype = CDAI_TYPE_NVME_CNTRL;
+#else
+		cdai->buftype = 6;
 #endif
+		cdai->bufsiz = sizeof(struct nvme_controller_data);
+		cdai->buf = (uint8_t *)&cd;
+
+		if (cam_send_ccb(fsmart->camdev, ccb) >= 0) {
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+				cam_strvis((uint8_t *)sinfo->device, cd.mn,
+						sizeof(cd.mn),
+						sizeof(sinfo->device));
+				cam_strvis((uint8_t *)sinfo->rev, cd.fr,
+						sizeof(cd.fr),
+						sizeof(sinfo->rev));
+				cam_strvis((uint8_t *)sinfo->serial, cd.sn,
+						sizeof(cd.sn),
+						sizeof(sinfo->serial));
+			}
+		}
+
+		cam_freeccb(ccb);
 	}
 
 	return 0;
@@ -371,6 +389,17 @@ __device_get_info(struct fbsd_smart *fsmart)
 
 		CCB_CLEAR_ALL_EXCEPT_HDR(cgd);
 
+		/*
+		 * XXX although convenient, GDEV_TYPE won't work for NVMe b/c
+		 * of the pointer silliness. What we get from GDEV_TYPE is:
+		 *  - device (ata/model, scsi/product)
+		 *  - revision (ata, scsi)
+		 *  - serial (ata)
+		 *  - vendor (scsi)
+		 *  - supported (ata)
+		 *
+		 *  Serial # for all proto via ccb_dev_advinfo (buftype CDAI_TYPE_SERIAL_NUM)
+		 */
 		ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 
 		if (cam_send_ccb(fsmart->camdev, ccb) >= 0) {
@@ -391,6 +420,8 @@ __device_get_info(struct fbsd_smart *fsmart)
 				}
 			}
 		}
+
+		cam_freeccb(ccb);
 	}
 
 	return rc;
