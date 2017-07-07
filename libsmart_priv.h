@@ -18,7 +18,8 @@
 
 typedef struct smart_info_s {
 	uint32_t supported:1,
-		 :31;
+		 tunneled:1,
+		 :30;
 	char vendor[16], device[48], rev[16], serial[32];
 } smart_info_t;
 

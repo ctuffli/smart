@@ -31,6 +31,7 @@ struct fbsd_smart {
 };
 
 static smart_protocol_e __device_get_proto(struct fbsd_smart *);
+static bool __device_proto_tunneled(struct fbsd_smart *);
 static int32_t __device_get_info(struct fbsd_smart *);
 
 smart_h
@@ -59,6 +60,13 @@ device_open(smart_protocol_e protocol, char *devname)
 			} else {
 				printf("%s: protocol mismatch %d vs %d\n",
 						__func__, protocol, proto);
+			}
+
+			if (proto == SMART_PROTO_SCSI) {
+				if (__device_proto_tunneled(h)) {
+					h->common.protocol = SMART_PROTO_ATA;
+					h->common.info.tunneled = 1;
+				}
 			}
 
 			__device_get_info(h);
@@ -90,19 +98,49 @@ static const uint8_t smart_fis[] = {
 static int32_t
 __device_read_ata(smart_h h, union ccb *ccb, void *buf, size_t bsize)
 {
+	struct fbsd_smart *fsmart = h;
 
-	bcopy(smart_fis, &ccb->ataio.cmd.command, sizeof(smart_fis));
+	if (fsmart->common.info.tunneled) {
+		struct ata_pass_16 *cdb;
 
-	cam_fill_ataio(&ccb->ataio,
-			/* retries */1,
-			/* cbfcnp */NULL,
-			/* flags */CAM_DIR_IN,
-			/* tag_action */0,
-			/* data_ptr */buf,
-			/* dxfer_len */bsize,
-			/* timeout */5000);
-	ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
-	ccb->ataio.cmd.control = 0;
+		cdb = (struct ata_pass_16 *)ccb->csio.cdb_io.cdb_bytes;
+		bzero(cdb, sizeof(*cdb));
+
+		cdb->opcode = ATA_PASS_16;
+		cdb->protocol = 8;//???
+		cdb->flags = AP_FLAG_BYT_BLOK_BYTES |
+				AP_FLAG_TLEN_SECT_CNT |
+				AP_FLAG_TDIR_FROM_DEV;
+		cdb->features = 0xd0;	// SMART AREAD ATTR VALUES
+		cdb->sector_count = 1;
+		cdb->lba_mid = 0x4f;
+		cdb->lba_high = 0xc2;
+		cdb->command = ATA_SMART_CMD;
+
+		cam_fill_csio(&ccb->csio,
+				/* retries */1,
+				/* cbfcnp */NULL,
+				/* flags */CAM_DIR_IN,
+				/* tag_action */0,
+				/* data_ptr */buf,
+				/* dxfer_len */bsize,
+				/* sense_len */0,
+				/* cmd_size */16,
+				/* timeout */5000);
+	} else {
+		bcopy(smart_fis, &ccb->ataio.cmd.command, sizeof(smart_fis));
+
+		cam_fill_ataio(&ccb->ataio,
+				/* retries */1,
+				/* cbfcnp */NULL,
+				/* flags */CAM_DIR_IN,
+				/* tag_action */0,
+				/* data_ptr */buf,
+				/* dxfer_len */bsize,
+				/* timeout */5000);
+		ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
+		ccb->ataio.cmd.control = 0;
+	}
 
 	return 0;
 }
@@ -175,6 +213,53 @@ device_read(smart_h h, void *buf, size_t bsize)
 	cam_freeccb(ccb);
 
 	return 0;
+}
+
+static bool
+__device_proto_tunneled(struct fbsd_smart *fsmart)
+{
+	union ccb *ccb = NULL;
+	struct scsi_vpd_supported_page_list supportedp;
+	uint32_t i;
+	bool is_tunneled = false;
+
+	if (fsmart->common.protocol != SMART_PROTO_SCSI) {
+		return false;
+	}
+
+	ccb = cam_getccb(fsmart->camdev);
+	if (!ccb) {
+		warn("Allocation failure ccb=%p", ccb);
+		goto __device_proto_tunneled_out;
+	}
+
+	scsi_inquiry(&ccb->csio,
+			3, // retries
+			NULL, // callback function
+			MSG_SIMPLE_Q_TAG, // tag action
+			(uint8_t *)&supportedp,
+			sizeof(struct scsi_vpd_supported_page_list),
+			1, // EVPD
+			SVPD_SUPPORTED_PAGE_LIST, // page code
+			SSD_FULL_SIZE, // sense length
+			5000); // timeout
+
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if ((cam_send_ccb(fsmart->camdev, ccb) >= 0) &&
+			((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+		for (i = 0; i < supportedp.length; i++) {
+			if (supportedp.list[i] == SVPD_ATA_INFORMATION) {
+				is_tunneled = true;
+				break;
+			}
+		}
+	}
+
+	cam_freeccb(ccb);
+
+__device_proto_tunneled_out:
+	return is_tunneled;
 }
 
 /**
@@ -285,6 +370,7 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 		goto __device_info_scsi_out;
 	}
 
+	/* Get the serial number */
 	CCB_CLEAR_ALL_EXCEPT_HDR(&ccb->csio);
 
 	scsi_inquiry(&ccb->csio,
@@ -305,7 +391,7 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 		cam_strvis((uint8_t *)sinfo->serial, snum->serial_num,
 				snum->length,
 				sizeof(sinfo->serial));
-		sinfo->serial[sizeof(sinfo->serial) -1] = '\0';
+		sinfo->serial[sizeof(sinfo->serial) - 1] = '\0';
 	}
 
 __device_info_scsi_out:
@@ -369,6 +455,63 @@ __device_info_nvme(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	return 0;
 }
 
+static int32_t
+__device_info_tunneled_ata(struct fbsd_smart *fsmart)
+{
+	struct ata_params ident_data;
+	union ccb *ccb = NULL;
+	int32_t	rc = -1;
+
+	ccb = cam_getccb(fsmart->camdev);
+	if (ccb == NULL) {
+		goto __device_info_tunneled_ata_out;
+	}
+
+	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
+
+	rc = scsi_ata_pass(&ccb->csio,
+			/*retries*/	1,
+			/*cbfcnp*/	NULL,
+			/*flags*/	CAM_DIR_IN,
+			/*tag_action*/	MSG_SIMPLE_Q_TAG,
+			/*protocol*/	AP_PROTO_PIO_IN,
+			/*ata_flags*/	AP_FLAG_BYT_BLOK_BYTES |
+					AP_FLAG_TLEN_SECT_CNT |
+					AP_FLAG_TDIR_FROM_DEV,
+			/*features*/	0,
+			/*sector_count*/sizeof(struct ata_params),
+			/*lba*/		0,
+			/*command*/	ATA_ATA_IDENTIFY,
+			/*device*/	0,
+			/*icc*/		0,
+			/*auxiliary*/	0,
+			/*control*/	0,
+			/*data_ptr*/	(uint8_t *)&ident_data,
+			/*dxfer_len*/	sizeof(struct ata_params),
+			/*cdb_storage*/	NULL,
+			/*cdb_storage_len*/ 0,
+			/*minimum_cmd_size*/ 0,
+			/*sense_len*/	SSD_FULL_SIZE,
+			/*timeout*/	5000
+			);
+
+	if (rc != 0) {
+		warnx("%s: scsi_ata_pass() failed (programmer error?)",
+				__func__);
+		goto __device_info_tunneled_ata_out;
+	}
+
+	fsmart->common.info.supported = ident_data.support.command1 &
+		ATA_SUPPORT_SMART;
+
+__device_info_tunneled_ata_out:
+	if (ccb) {
+		cam_freeccb(ccb);
+	}
+
+	return rc;
+}
+
 /**
  * Retrieve the device information and use to populate the info structure
  */
@@ -410,6 +553,9 @@ __device_get_info(struct fbsd_smart *fsmart)
 					break;
 				case PROTO_SCSI:
 					rc = __device_info_scsi(fsmart, cgd);
+					if (!rc && fsmart->common.protocol == SMART_PROTO_ATA) {
+						rc = __device_info_tunneled_ata(fsmart);
+					}
 					break;
 				case PROTO_NVME:
 					rc = __device_info_nvme(fsmart, cgd);
