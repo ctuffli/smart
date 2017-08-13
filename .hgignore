@@ -1,3 +1,4 @@
+syntax: glob
 smart
 smart.debug
 smart.full
