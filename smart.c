@@ -21,24 +21,28 @@
 
 #include "libsmart.h"
 
+#define SMART_VERSION	"0.0.3"
+
 static struct option opts[] = {
 	{ "help", no_argument, NULL, 'h' },
 	{ "threshold", no_argument, NULL, 't' },
 	{ "hex", no_argument, NULL, 'x' },
 	{ "attribute", required_argument, NULL, 'a' },
 	{ "info", no_argument, NULL, 'i' },
+	{ "version", no_argument, NULL, 'v' },
 	{ NULL, 0, NULL, 0 }
 };
 
 void
 usage(const char *name)
 {
-	printf("Usage: %s [-htxi] [-a <attribute id>]\n", name);
+	printf("Usage: %s [-htxi] [-a <attribute id>] <device name>\n", name);
 	printf("\t-h, --help\n");
 	printf("\t-t, --threshold : also print out the threshold values\n");
 	printf("\t-x, --hex : print the values out in hexadecimal\n");
 	printf("\t-a, --attribute : print a specific attribute\n");
 	printf("\t-i, --info : print general device information\n");
+	printf("\t-v, --version : print the version and copyright\n");
 }
 
 int
@@ -47,11 +51,11 @@ main(int argc, char *argv[])
 	smart_h h;
 	smart_map_t *sm = NULL;
 	int ch;
-	bool do_thresh = false, do_hex = false, do_info = false;
+	bool do_thresh = false, do_hex = false, do_info = false, do_version = false;
 	int32_t  attr = -1;
 	int rc = EXIT_SUCCESS;
 
-	while ((ch = getopt_long(argc, argv, "htxa:i", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "htxa:iv", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
 			usage(argv[0]);
@@ -70,11 +74,21 @@ main(int argc, char *argv[])
 		case 'i':
 			do_info = true;
 			break;
+		case 'v':
+			do_version = true;
+			break;
 		default:
 			printf("unknown option %c\n", ch);
 			usage(argv[0]);
 			return EXIT_FAILURE;
 		}
+	}
+
+	if (do_version) {
+		printf("smart, version %s\n", SMART_VERSION);
+		printf("Copyright (c) 2016-2017 Chuck Tuffli\n"
+				"This is free software; see the source for copying conditions.\n");
+		return EXIT_SUCCESS;
 	}
 
 	argc -= optind;
