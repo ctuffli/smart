@@ -9,6 +9,9 @@
 
 * Clone this repository onto a FreeBSD box and run make
 
+$ hg clone https://ctuffli@bitbucket.org/ctuffli/smart
+$ cd smart && make
+
 ### How to use
     Usage: smart [-htxi] [-a <attribute id>] <device name>
             -h, --help
@@ -21,3 +24,13 @@
 ### Example
 * List the raw attributes of SATA device /dev/ada0
     smart ada0
+
+### What does the output mean?
+The format and location of SMART / health data varies across protocols.
+To simplify the output, the application uses a Dumb Unified Model of
+SMART Buffers. In this model, SMART data is located in one or more log
+pages. Each page contains one or more values ("attributes")
+differentiated by an ID. Note that ID's are only unique within a log
+page. The application outputs:
+<Log Page ID> <Attribute ID> <Attribute value>
+for each selected attribute.
