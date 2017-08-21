@@ -151,6 +151,27 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 }
 
 static int32_t
+__device_read_scsi(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
+{
+
+	scsi_log_sense(&ccb->csio,
+			/* retries */1,
+			/* cbfcnp */NULL,
+			/* tag_action */0,
+			/* page_code */SL_SPF,
+			/* page */page,
+			/* save_pages */0,
+			/* ppc */0,
+			/* paramptr */0,
+			/* param_buf */buf,
+			/* param_len */bsize,
+			/* sense_len */0,
+			/* timeout */5000);
+
+	return 0;
+}
+
+static int32_t
 __device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
 {
 	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
@@ -203,6 +224,9 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 	switch (fsmart->common.protocol) {
 	case SMART_PROTO_ATA:
 		rc = __device_read_ata(h, page, buf, bsize, ccb);
+		break;
+	case SMART_PROTO_SCSI:
+		__device_read_scsi(h, page, buf, bsize, ccb);
 		break;
 	case SMART_PROTO_NVME:
 		rc = __device_read_nvme(h, page, buf, bsize, ccb);
@@ -361,6 +385,7 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	smart_info_t *sinfo = NULL;
 	union ccb *ccb = NULL;
 	struct scsi_vpd_unit_serial_number *snum = NULL;
+	struct scsi_log_informational_exceptions ie = {0};
 
 	if (!fsmart || !cgd) {
 		return -1;
@@ -407,6 +432,31 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 				snum->length,
 				sizeof(sinfo->serial));
 		sinfo->serial[sizeof(sinfo->serial) - 1] = '\0';
+	}
+
+	scsi_log_sense(&ccb->csio,
+			/* retries */1,
+			/* cbfcnp */NULL,
+			/* tag_action */0,
+			/* page_code */0,
+			/* page */SLS_IE_PAGE,
+			/* save_pages */0,
+			/* ppc */0,
+			/* paramptr */0,
+			/* param_buf */(uint8_t *)&ie,
+			/* param_len */sizeof(ie),
+			/* sense_len */0,
+			/* timeout */5000);
+
+	if ((cam_send_ccb(fsmart->camdev, ccb) >= 0) &&
+			((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+		if ((ie.hdr.param_len < 4) || ie.ie_asc || ie.ie_ascq) {
+			printf("Log Sense, Informational Exceptions failed "
+					"(length=%u asc=%#x ascq=%#x)\n",
+					ie.hdr.param_len, ie.ie_asc, ie.ie_ascq); 
+		} else {
+			sinfo->supported = true;
+		}
 	}
 
 __device_info_scsi_out:

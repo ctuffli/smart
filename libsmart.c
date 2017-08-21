@@ -32,10 +32,34 @@ smart_page_list_t pg_list_ata = {
 	}
 };
 
+#define PAGE_ID_NVME_SMART_HEALTH	0x02
+
 smart_page_list_t pg_list_nvme = {
 	.pg_count = 1,
 	.pages = {
-		{ .id = 0x02, .bytes = 512 }
+		{ .id = PAGE_ID_NVME_SMART_HEALTH, .bytes = 512 }
+	}
+};
+
+#define PAGE_ID_SCSI_SUPPORTED_PAGES	0x00
+#define PAGE_ID_SCSI_WRITE_ERR		0x02		/* Write Error counter */
+#define PAGE_ID_SCSI_READ_ERR		0x03		/* Read Error counter */
+#define PAGE_ID_SCSI_VERIFY_ERR		0x05		/* Verify Error counter */
+#define PAGE_ID_SCSI_NON_MEDIUM_ERR	0x06		/* Non-Medium Error */
+#define PAGE_ID_SCSI_LAST_N_ERR		0x07		/* Last n Error events */
+#define PAGE_ID_SCSI_TEMPERATURE	0x0d		/* Temperature */
+#define PAGE_ID_SCSI_START_STOP_CYCLE	0x0e		/* Start-Stop Cycle counter */
+
+smart_page_list_t pg_list_scsi = {
+	.pg_count = 7,
+	.pages = {
+		{ .id = PAGE_ID_SCSI_WRITE_ERR, .bytes = 128 },
+		{ .id = PAGE_ID_SCSI_READ_ERR, .bytes = 128 },
+		{ .id = PAGE_ID_SCSI_VERIFY_ERR, .bytes = 128 },
+		{ .id = PAGE_ID_SCSI_NON_MEDIUM_ERR, .bytes = 128 },
+		{ .id = PAGE_ID_SCSI_LAST_N_ERR, .bytes = 128 },
+		{ .id = PAGE_ID_SCSI_TEMPERATURE, .bytes = 64 },
+		{ .id = PAGE_ID_SCSI_START_STOP_CYCLE, .bytes = 128 },
 	}
 };
 
@@ -79,7 +103,7 @@ smart_read(smart_h h)
 	smart_buf_t *sb = NULL;
 	smart_map_t *sm = NULL;
 
-	sb = malloc(sizeof(smart_buf_t));
+	sb = calloc(1, sizeof(smart_buf_t));
 	if (sb) {
 		sb->protocol = s->protocol;
 
@@ -566,11 +590,195 @@ __smart_map_nvme(smart_buf_t *sb, smart_map_t *sm)
 	sm->count = a;
 }
 
+/*
+ * Create a SMART map for SCSI error counter pages
+ *
+ * Several SCSI log pages have a similar format for the error counter log
+ * pages
+ */
+static void
+__smart_map_scsi_err_page(smart_map_t *sm, void *b, size_t bsize)
+{
+	struct scsi_err_page {
+		uint8_t page_code;
+		uint8_t subpage_code;
+		uint16_t page_length;
+		uint8_t param[];
+	} __attribute__((packed)) *err = b;
+	struct scsi_err_counter_param {
+		uint16_t	code;
+		uint8_t		format:2,
+				tmc:2,
+				etc:1,
+				tsd:1,
+				:1,
+				du:1;
+		uint8_t		length;
+		uint8_t		counter[];
+	} __attribute__((packed)) *param = NULL;
+	uint32_t a, p, page_length;
+
+	a = sm->count;
+
+	p = 0;
+	page_length = be16toh(err->page_length);
+
+	while (p < page_length) {
+		param = (struct scsi_err_counter_param *) (err->param + p);
+
+		sm->attr[a].page = err->page_code;
+		sm->attr[a].id = be16toh(param->code);
+		sm->attr[a].bytes = param->length;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = param->counter;
+		sm->attr[a].thresh = NULL;
+
+		p += 4 + param->length;
+
+		a++;
+	}
+	
+	sm->count = a;
+}
+
+static void
+__smart_map_scsi_last_err(smart_map_t *sm, void *b, size_t bsize)
+{
+	struct scsi_last_n_error_event_page {
+		uint8_t page_code:6,
+			spf:1,
+			ds:1;
+		uint8_t	subpage_code;
+		uint16_t page_length;
+		uint8_t event[];
+	} __attribute__((packed)) *lastn = b;
+	struct scsi_last_n_error_event {
+		uint16_t	code;
+		uint8_t		format:2,
+				tmc:2,
+				etc:1,
+				tsd:1,
+				:1,
+				du:1;
+		uint8_t		length;
+		uint8_t		data[];
+	} __attribute__((packed)) *event = NULL;
+	uint32_t a, p, page_length;
+
+	a = sm->count;
+
+	p = 0;
+	page_length = be16toh(lastn->page_length);
+
+	while (p < page_length) {
+		event = (struct scsi_last_n_error_event *) (lastn->event + p);
+
+		sm->attr[a].page = lastn->page_code;
+		sm->attr[a].id = be16toh(event->code);
+		sm->attr[a].bytes = event->length;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = event->data;
+		sm->attr[a].thresh = NULL;
+
+		p += 4 + event->length;
+
+		a++;
+	}
+	
+	sm->count = a;
+}
+
+static void
+__smart_map_scsi_temp(smart_map_t *sm, void *b, size_t bsize)
+{
+	struct scsi_temperature_log_page {
+		uint8_t page_code;
+		uint8_t subpage_code;
+		uint16_t page_length;
+		struct {
+			uint16_t code;
+			uint8_t control;
+			uint8_t length;
+			uint8_t	rsvd;
+			uint8_t temperature;
+		} param[];
+	} __attribute__((packed)) *temp = b;
+	uint32_t a, p, count;
+
+	count = be16toh(temp->page_length);
+
+	a = sm->count;
+
+	for (p = 0; p < count; p++) {
+		switch (be16toh(temp->param[p].code)) {
+		case 0:
+		case 1:
+			sm->attr[a].page = temp->page_code;
+			sm->attr[a].id = be16toh(temp->param[p].code);
+			sm->attr[a].bytes = 1;
+			sm->attr[a].flags = 0;
+			sm->attr[a].raw = &(temp->param[p].temperature);
+			sm->attr[a].thresh = NULL;
+			a++;
+			break;
+		default:
+			break;
+		}
+	}
+
+	sm->count = a;
+}
+
+static void
+__smart_map_scsi_start_stop(smart_map_t *sm, void *b, size_t bsize)
+{
+printf("%s\n", __func__);
+}
+
+/*
+ * Create a map based on the page list
+ */
+static void
+__smart_map_scsi(smart_h h, smart_buf_t *sb, smart_map_t *sm)
+{
+	smart_t *s = h;
+	smart_page_list_t *pg_list = NULL;
+	uint8_t *b = NULL;
+	uint32_t p;
+
+	pg_list = s->pg_list;
+	b = sb->b;
+
+	sm->count = 0;
+
+	for (p = 0; p < pg_list->pg_count; p++) {
+		switch (pg_list->pages[p].id) {
+		case PAGE_ID_SCSI_WRITE_ERR:
+		case PAGE_ID_SCSI_READ_ERR:
+		case PAGE_ID_SCSI_VERIFY_ERR:
+		case PAGE_ID_SCSI_NON_MEDIUM_ERR:
+			__smart_map_scsi_err_page(sm, b, pg_list->pages[p].bytes);
+			break;
+		case PAGE_ID_SCSI_LAST_N_ERR:
+			__smart_map_scsi_last_err(sm, b, pg_list->pages[p].bytes);
+			break;
+		case PAGE_ID_SCSI_TEMPERATURE:
+			__smart_map_scsi_temp(sm, b, pg_list->pages[p].bytes);
+			break;
+		case PAGE_ID_SCSI_START_STOP_CYCLE:
+			__smart_map_scsi_start_stop(sm, b, pg_list->pages[p].bytes);
+			break;
+		}
+
+		b += pg_list->pages[p].bytes;
+	}
+}
+
 /**
  * Create a map of SMART values
  */
 static void
-__smart_attribute_map(smart_buf_t *sb, smart_map_t *sm)
+__smart_attribute_map(smart_h h, smart_buf_t *sb, smart_map_t *sm)
 {
 
 	if (!sb || !sm) {
@@ -583,6 +791,9 @@ __smart_attribute_map(smart_buf_t *sb, smart_map_t *sm)
 		break;
 	case SMART_PROTO_NVME:
 		__smart_map_nvme(sb, sm);
+		break;
+	case SMART_PROTO_SCSI:
+		__smart_map_scsi(h, sb, sm);
 		break;
 	default:
 		sm->count = 0;
@@ -604,10 +815,72 @@ __smart_map(smart_h h, smart_buf_t *sb)
 		/* count starts as the max but is adjusted to reflect the actual number */
 		sm->count = max;
 
-		__smart_attribute_map(sb, sm);
+		__smart_attribute_map(h, sb, sm);
 	}
 
 	return sm;
+}
+
+typedef struct {
+	uint8_t	page_code;
+	uint8_t	subpage_code;
+	uint16_t page_length;
+	uint8_t supported_pages[];
+} __attribute__((packed)) scsi_supported_log_pages;
+
+static smart_page_list_t *
+__smart_page_list_scsi(smart_t *s)
+{
+	smart_page_list_t *pg_list = NULL;
+	scsi_supported_log_pages *b = NULL;
+	uint32_t bsize = 68;	/* 4 byte header + 63 entries + 1 just cuz */
+	int32_t rc;
+
+	b = malloc(bsize);
+	if (!b) {
+		return NULL;
+	}
+
+	/* Supported Pages page ID is 0 */
+	rc = device_read_log(s, PAGE_ID_SCSI_SUPPORTED_PAGES, (uint8_t *)b,
+			bsize);
+	if (rc < 0) {
+		fprintf(stderr, "Read Supported Log Pages failed\n");
+	} else {
+		uint8_t *supported_page = b->supported_pages;
+		uint32_t n_supported = be16toh(b->page_length);
+		uint32_t s, p, pmax = pg_list_scsi.pg_count;
+
+		/* Build a page list using only pages the device supports */
+		pg_list = malloc(sizeof(pg_list_scsi));
+		if (pg_list == NULL) {
+			n_supported = 0;
+		} else {
+			pg_list->pg_count = 0;
+		}
+
+		/*
+		 * Loop through all supported pages looking for those related
+		 * to SMART. The below assumes the supported page list from the
+		 * device and in pg_lsit_scsi are sorted in increasing order.
+		 */
+		for (s = 0, p = 0; (s < n_supported) && (p < pmax); s++) {
+			while ((supported_page[s] > pg_list_scsi.pages[p].id) &&
+					(p < pmax)) {
+				p++;
+			}
+
+			if (supported_page[s] == pg_list_scsi.pages[p].id) {
+				pg_list->pages[pg_list->pg_count] = pg_list_scsi.pages[p];
+				pg_list->pg_count++;
+				p++;
+			}
+		}
+	}
+
+	free(b);
+
+	return pg_list;
 }
 
 static smart_page_list_t *
@@ -626,6 +899,9 @@ __smart_page_list(smart_h h)
 		break;
 	case SMART_PROTO_NVME:
 		pg_list = &pg_list_nvme;
+		break;
+	case SMART_PROTO_SCSI:
+		pg_list = __smart_page_list_scsi(s);
 		break;
 	default:
 		pg_list = NULL;
