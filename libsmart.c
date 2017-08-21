@@ -22,10 +22,7 @@
 
 #include "libsmart.h"
 #include "libsmart_priv.h"
-
-extern smart_h device_open(smart_protocol_e, char *);
-extern void device_close(smart_h);
-extern int32_t device_read(smart_h, void *, size_t);
+#include "libsmart_dev.h"
 
 static uint32_t __smart_attribute_max(smart_buf_t *sb);
 static uint32_t __smart_buffer_size(smart_buf_t *sb);
@@ -79,15 +76,31 @@ smart_read(smart_h h)
 			free(sb);
 			sb = NULL;
 		} else {
-			device_read(h, sb->b, sb->bsize);
+			uint32_t page = 0;
 
-			sb->attr_count = __smart_attribute_max(sb);
+			switch (s->protocol) {
+			case SMART_PROTO_ATA:
+				page = 0xd0;
+				break;
+			case SMART_PROTO_NVME:
+				page = 0x02;
+				break;
+			default:
+				page = 0;
+			}
 
-			sm = __smart_map(h, sb);
-			if (!sm) {
-				free(sb->b);
+			if (device_read_log(h, page, sb->b, sb->bsize)) {
 				free(sb);
 				sb = NULL;
+			} else {
+				sb->attr_count = __smart_attribute_max(sb);
+
+				sm = __smart_map(h, sb);
+				if (!sm) {
+					free(sb->b);
+					free(sb);
+					sb = NULL;
+				}
 			}
 		}
 	}

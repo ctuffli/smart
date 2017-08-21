@@ -96,9 +96,14 @@ static const uint8_t smart_fis[] = {
 };
 
 static int32_t
-__device_read_ata(smart_h h, union ccb *ccb, void *buf, size_t bsize)
+__device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
 {
 	struct fbsd_smart *fsmart = h;
+
+	/* Only support SMART READ DATA */
+	if (page != 0xd0) {
+		return EINVAL;
+	}
 
 	if (fsmart->common.info.tunneled) {
 		struct ata_pass_16 *cdb;
@@ -146,19 +151,27 @@ __device_read_ata(smart_h h, union ccb *ccb, void *buf, size_t bsize)
 }
 
 static int32_t
-__device_read_nvme(smart_h h, union ccb *ccb, void *buf, size_t bsize)
+__device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
 {
 	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
 	uint32_t numd = 0;
 
 #if (__FreeBSD_version > 1200038)
+	switch (page) {
+	case NVME_LOG_HEALTH_INFORMATION:
+		numd = (sizeof(struct nvme_health_information_page) / sizeof(uint32_t));
+		break;
+	default:
+		/* Unsupported log page */
+		return ENODEV;
+	}
+
 	/* Subtract 1 because NUMD is a zero based value */
-	numd = (sizeof(struct nvme_health_information_page) / sizeof(uint32_t))
-		- 1;
+	numd--;
 
 	nvmeio->cmd.opc = NVME_OPC_GET_LOG_PAGE;
 	nvmeio->cmd.nsid = NVME_GLOBAL_NAMESPACE_TAG;
-	nvmeio->cmd.cdw10 = NVME_LOG_HEALTH_INFORMATION | (numd << 16);
+	nvmeio->cmd.cdw10 = page | (numd << 16);
 
 	cam_fill_nvmeadmin(&ccb->nvmeio,
 			/* retries */1,
@@ -172,11 +185,11 @@ __device_read_nvme(smart_h h, union ccb *ccb, void *buf, size_t bsize)
 }
 
 int32_t
-device_read(smart_h h, void *buf, size_t bsize)
+device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 {
 	struct fbsd_smart *fsmart = h;
 	union ccb *ccb = NULL;
-	int retval;
+	int retval = 0;
 
 	if (fsmart == NULL)
 		return EINVAL;
@@ -189,16 +202,19 @@ device_read(smart_h h, void *buf, size_t bsize)
 
 	switch (fsmart->common.protocol) {
 	case SMART_PROTO_ATA:
-		__device_read_ata(h, ccb, buf, bsize);
+		retval = __device_read_ata(h, page, buf, bsize, ccb);
 		break;
 	case SMART_PROTO_NVME:
-		__device_read_nvme(h, ccb, buf, bsize);
+		retval = __device_read_nvme(h, page, buf, bsize, ccb);
 		break;
 	default:
 		warn("unsupported protocol %d", fsmart->common.protocol);
 		cam_freeccb(ccb);
-		return -1;
+		return ENODEV;
 	}
+
+	if (retval)
+		return retval;
 
 	if (((retval = cam_send_ccb(fsmart->camdev, ccb)) < 0)
 			|| ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
