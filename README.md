@@ -40,4 +40,4 @@ for each selected attribute.
 ### Protocol Specific Notes
 * __ATA__ : The attribute and values follow the 'standard'. The log page is the Feature value used in ATA command. Thus, the default page is 0xd0 (a.k.a SMART Read Data). 
 * __NVMe__ : The Log Page is the SMART / Health Information LID value in the Get Log Page command (i.e. 0x2). The attribute ID is the byte offset within this page.
-* __SCSI__ : The Log Page ID is the Page Code value in the Mode Sense command. The attribute ID is the byte offset within this page. The values will depend on the Page Codes supported by a drive.
+* __SCSI__ : The Log Page ID is the Page Code value in the Mode Sense command. The attribute ID is the parameter code defined by this page (e.g. 0 in the Write Error Counters log page is 'Errors corrected without substantial delay'). The values will depend on the Page Codes supported by a drive.
