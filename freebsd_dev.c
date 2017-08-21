@@ -116,7 +116,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 		cdb->flags = AP_FLAG_BYT_BLOK_BYTES |
 				AP_FLAG_TLEN_SECT_CNT |
 				AP_FLAG_TDIR_FROM_DEV;
-		cdb->features = 0xd0;	// SMART AREAD ATTR VALUES
+		cdb->features = 0xd0;	// SMART READ ATTR VALUES
 		cdb->sector_count = 1;
 		cdb->lba_mid = 0x4f;
 		cdb->lba_high = 0xc2;
@@ -189,7 +189,7 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 {
 	struct fbsd_smart *fsmart = h;
 	union ccb *ccb = NULL;
-	int retval = 0;
+	int rc = 0;
 
 	if (fsmart == NULL)
 		return EINVAL;
@@ -202,10 +202,10 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 
 	switch (fsmart->common.protocol) {
 	case SMART_PROTO_ATA:
-		retval = __device_read_ata(h, page, buf, bsize, ccb);
+		rc = __device_read_ata(h, page, buf, bsize, ccb);
 		break;
 	case SMART_PROTO_NVME:
-		retval = __device_read_nvme(h, page, buf, bsize, ccb);
+		rc = __device_read_nvme(h, page, buf, bsize, ccb);
 		break;
 	default:
 		warn("unsupported protocol %d", fsmart->common.protocol);
@@ -213,12 +213,12 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 		return ENODEV;
 	}
 
-	if (retval)
-		return retval;
+	if (rc)
+		return rc;
 
-	if (((retval = cam_send_ccb(fsmart->camdev, ccb)) < 0)
+	if (((rc = cam_send_ccb(fsmart->camdev, ccb)) < 0)
 			|| ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		if (retval < 0)
+		if (rc < 0)
 			warn("error sending command");
 
 		cam_error_print(fsmart->camdev, ccb, CAM_ESF_ALL,

@@ -23,9 +23,18 @@ typedef struct smart_info_s {
 	char vendor[16], device[48], rev[16], serial[32];
 } smart_info_t;
 
+typedef struct smart_page_list_s {
+	uint32_t	pg_count;
+	struct {
+		uint32_t id;
+		size_t	bytes;
+	} pages[];
+} smart_page_list_t;
+
 typedef struct smart_s {
 	smart_protocol_e protocol;
 	smart_info_t info;
+	smart_page_list_t *pg_list;
 	/* Device / OS specific follows this structure */
 } smart_t;
 

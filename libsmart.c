@@ -24,9 +24,26 @@
 #include "libsmart_priv.h"
 #include "libsmart_dev.h"
 
+/* Default page lists */
+smart_page_list_t pg_list_ata = {
+	.pg_count = 1,
+	.pages = {
+		{ .id = 0xd0, .bytes = 512 }
+	}
+};
+
+smart_page_list_t pg_list_nvme = {
+	.pg_count = 1,
+	.pages = {
+		{ .id = 0x02, .bytes = 512 }
+	}
+};
+
 static uint32_t __smart_attribute_max(smart_buf_t *sb);
-static uint32_t __smart_buffer_size(smart_buf_t *sb);
+static uint32_t __smart_buffer_size(smart_h h);
 static smart_map_t *__smart_map(smart_h h, smart_buf_t *sb);
+static smart_page_list_t *__smart_page_list(smart_h h);
+static int32_t __smart_read_pages(smart_h h, smart_buf_t *sb);
 
 smart_h
 smart_open(smart_protocol_e protocol, char *devname)
@@ -65,46 +82,54 @@ smart_read(smart_h h)
 	sb = malloc(sizeof(smart_buf_t));
 	if (sb) {
 		sb->protocol = s->protocol;
+
+		/*
+		 * Need the page list to calculate the buffer size. If one
+		 * isn't specified, get the default based on the protocol.
+		 */
+		if (s->pg_list == NULL) {
+			s->pg_list = __smart_page_list(s);
+			if (!s->pg_list) {
+				goto smart_read_out;
+			}
+		}
+
 		sb->b = NULL;
-		sb->bsize = __smart_buffer_size(sb);
+		sb->bsize = __smart_buffer_size(s);
 
 		if (sb->bsize != 0) {
 			sb->b = malloc(sb->bsize);
 		}
 
 		if (sb->b == NULL) {
+			goto smart_read_out;
+		}
+
+		if (__smart_read_pages(s, sb) < 0) {
+			goto smart_read_out;
+		}
+
+		sb->attr_count = __smart_attribute_max(sb);
+
+		sm = __smart_map(h, sb);
+		if (!sm) {
+			free(sb->b);
 			free(sb);
 			sb = NULL;
-		} else {
-			uint32_t page = 0;
-
-			switch (s->protocol) {
-			case SMART_PROTO_ATA:
-				page = 0xd0;
-				break;
-			case SMART_PROTO_NVME:
-				page = 0x02;
-				break;
-			default:
-				page = 0;
-			}
-
-			if (device_read_log(h, page, sb->b, sb->bsize)) {
-				free(sb);
-				sb = NULL;
-			} else {
-				sb->attr_count = __smart_attribute_max(sb);
-
-				sm = __smart_map(h, sb);
-				if (!sm) {
-					free(sb->b);
-					free(sb);
-					sb = NULL;
-				}
-			}
 		}
 	}
-	
+
+smart_read_out:
+	if (!sm) {
+		if (sb) {
+			if (sb->b) {
+				free(sb->b);
+			}
+
+			free(sb);
+		}
+	}
+
 	return sm;
 }
 
@@ -229,7 +254,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 	uint32_t i;
 	const char *fmt, *lfmt;
 	bool do_hex = false;
-	bool do_thresh = false;
 	uint32_t bytes = 0;
 
 	if (!sm) {
@@ -239,20 +263,22 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 	if (flags & 0x1)
 		do_hex = true;
 
-	if (flags & 0x2)
-		do_thresh = true;
-
 	for (i = 0; i < sm->count; i++) {
+		/* If we're printing a specific attribute, is this it? */
 		if ((which != -1) && (which != sm->attr[i].id)) {
 			continue;
 		}
 
+		/* Print the page / attribute ID if selecting all attributes */
+		if (which == -1) {
+			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].page);
+			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+		}
+
 		bytes = sm->attr[i].bytes;
 
+		/* Print the attribute based on its size */
 		if (bytes > 8) {
-			if (which == -1)
-				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
-
 			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 			if (do_hex)
@@ -276,9 +302,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v64 &= mask;
 
-			if (which == -1)
-				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
-
 			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 			printf(do_hex ? RAW_LHEX : RAW_LDEC, v64);
@@ -298,9 +321,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			mask >>= 8 * (sizeof(uint32_t) - bytes);
 
 			v32 &= mask;
-
-			if (which == -1)
-				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
 
 			__smart_print_thresh(sm->attr[i].thresh, flags);
 
@@ -322,9 +342,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v16 &= mask;
 
-			if (which == -1)
-				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
-
 			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 			printf(do_hex ? RAW_HEX : RAW_DEC, v16);
@@ -332,15 +349,13 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 		} else if (bytes > 0) {
 			uint8_t v8 = *((uint8_t *)sm->attr[i].raw);
 
-			if (which == -1)
-				printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
-
 			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 			printf(do_hex ? RAW_HEX : RAW_DEC, v8);
 
 		}
 
+		/* We're done if printing a specific attribute */
 		if (which != -1)
 			break;
 	}
@@ -406,23 +421,20 @@ __smart_attribute_max(smart_buf_t *sb)
 }
 
 /**
- * Return the buffer size needed by the underlying protocol
+ * Return the total buffer size needed by the protocol's page list
  */
 static uint32_t
-__smart_buffer_size(smart_buf_t *sb)
+__smart_buffer_size(smart_h h)
 {
+	smart_t *s = h;
 	uint32_t size = 0;
 
-	if (sb != NULL) {
-		switch (sb->protocol) {
-		case SMART_PROTO_ATA:
-			size = 512;
-			break;
-		case SMART_PROTO_NVME:
-			size = 4096;
-			break;
-		default:
-			size = 0;
+	if ((s != NULL) && (s->pg_list != NULL)) {
+		smart_page_list_t *plist = s->pg_list;
+		uint32_t p = 0;
+
+		for (p = 0; p < plist->pg_count; p++) {
+			size += plist->pages[p].bytes;
 		}
 	}
 
@@ -441,6 +453,7 @@ __smart_map_ata_thresh(uint8_t *b)
 		sm->count = 4;
 
 		for (i = 0; i < sm->count; i++) {
+			sm->attr[i].page = 0;
 			sm->attr[i].id = i;
 			sm->attr[i].bytes = 1;
 			sm->attr[i].flags = 0;
@@ -475,6 +488,7 @@ __smart_map_ata(smart_buf_t *sb, smart_map_t *sm)
 				break;
 			}
 
+			sm->attr[i].page = 0xd0;
 			sm->attr[i].id = b[0];
 			sm->attr[i].bytes = 6;
 			sm->attr[i].flags = 0;
@@ -538,6 +552,7 @@ __smart_map_nvme(smart_buf_t *sb, smart_map_t *sm)
 
 	for (i = 0, a = 0; i < ARRAYLEN(__smart_nvme_values); i++) {
 		if (vs >= __smart_nvme_values[i].ver) {
+			sm->attr[a].page = 0x2;
 			sm->attr[a].id = __smart_nvme_values[i].off;
 			sm->attr[a].bytes = __smart_nvme_values[i].bytes;
 			sm->attr[a].flags = 0;
@@ -580,7 +595,7 @@ __smart_map(smart_h h, smart_buf_t *sb)
 	smart_map_t *sm = NULL;
 	uint32_t max = 0;
 
-	max = __smart_attribute_max(sb);
+	max = sb->attr_count;
 
 	sm = malloc(sizeof(smart_map_t) + (max * sizeof(smart_attr_t)));
 	if (sm) {
@@ -591,7 +606,55 @@ __smart_map(smart_h h, smart_buf_t *sb)
 
 		__smart_attribute_map(sb, sm);
 	}
-	
+
 	return sm;
 }
 
+static smart_page_list_t *
+__smart_page_list(smart_h h)
+{
+	smart_t *s = h;
+	smart_page_list_t *pg_list = NULL;
+
+	if (!s) {
+		return NULL;
+	}
+
+	switch (s->protocol) {
+	case SMART_PROTO_ATA:
+		pg_list = &pg_list_ata;
+		break;
+	case SMART_PROTO_NVME:
+		pg_list = &pg_list_nvme;
+		break;
+	default:
+		pg_list = NULL;
+	}
+
+	return pg_list;
+}
+
+static int32_t
+__smart_read_pages(smart_h h, smart_buf_t *sb)
+{
+	smart_t *s = h;
+	smart_page_list_t *plist = NULL;
+	uint8_t *buf = NULL;
+	int32_t rc = 0;
+	uint32_t p = 0;
+
+	plist = s->pg_list;
+
+	buf = sb->b;
+
+	for (p = 0; p < s->pg_list->pg_count; p++) {
+		rc = device_read_log(h, plist->pages[p].id, buf, plist->pages[p].bytes);
+		if (rc) {
+			break; 
+		}
+
+		buf += plist->pages[p].bytes;
+	}
+
+	return rc;
+}

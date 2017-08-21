@@ -39,6 +39,7 @@ typedef struct {
 struct smart_map_s;
 
 typedef struct smart_attr_s {
+	uint32_t page;
 	uint32_t id;
 	uint32_t bytes;
 	uint32_t flags;
