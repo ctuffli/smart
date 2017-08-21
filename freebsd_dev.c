@@ -151,8 +151,7 @@ __device_read_nvme(smart_h h, union ccb *ccb, void *buf, size_t bsize)
 	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
 	uint32_t numd = 0;
 
-/* TODO Don't enable until CAM support exists */
-#if 0
+#if (__FreeBSD_version > 1200038)
 	/* Subtract 1 because NUMD is a zero based value */
 	numd = (sizeof(struct nvme_health_information_page) / sizeof(uint32_t))
 		- 1;
