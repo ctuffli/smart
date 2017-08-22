@@ -302,7 +302,9 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 		bytes = sm->attr[i].bytes;
 
 		/* Print the attribute based on its size */
-		if (bytes > 8) {
+		if (sm->attr[i].flags & SMART_ATTR_F_STR) {
+			printf("%s\n", sm->attr[i].raw);
+		} else if (bytes > 8) {
 			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 			if (do_hex)
@@ -732,7 +734,65 @@ __smart_map_scsi_temp(smart_map_t *sm, void *b, size_t bsize)
 static void
 __smart_map_scsi_start_stop(smart_map_t *sm, void *b, size_t bsize)
 {
-printf("%s\n", __func__);
+	struct scsi_start_stop_page {
+		uint8_t page_code;
+#define START_STOP_CODE_DATE_MFG	0x0001
+#define START_STOP_CODE_DATE_ACCTN	0x0002
+#define START_STOP_CODE_CYCLES_LIFE	0x0003
+#define START_STOP_CODE_CYCLES_ACCUM	0x0004
+#define START_STOP_CODE_LOAD_LIFE	0x0005
+#define START_STOP_CODE_LOAD_ACCUM	0x0006
+		uint8_t subpage_code;
+		uint16_t page_length;
+		uint8_t param[];
+	} __attribute__((packed)) *sstop = b;
+	struct scsi_start_stop_param {
+		uint16_t code;
+		uint8_t	format:2,
+			tmc:2,
+			etc:1,
+			tsd:1,
+			:1,
+			du:1;
+		uint8_t length;
+		uint8_t data[];
+	} __attribute__((packed)) *param;
+	uint32_t a, p, page_length;
+
+	a = sm->count;
+
+	p = 0;
+	page_length = be16toh(sstop->page_length);
+
+	while (p < page_length) {
+		param = (struct scsi_start_stop_param *) (sstop->param + p);
+
+		sm->attr[a].page = sstop->page_code;
+		sm->attr[a].id = be16toh(param->code);
+
+		switch (sm->attr[a].id) {
+		case START_STOP_CODE_DATE_MFG:
+		case START_STOP_CODE_DATE_ACCTN:
+			sm->attr[a].bytes = 6;
+			sm->attr[a].flags = SMART_ATTR_F_STR;
+			break;
+		case START_STOP_CODE_CYCLES_LIFE:
+		case START_STOP_CODE_CYCLES_ACCUM:
+		case START_STOP_CODE_LOAD_LIFE:
+		case START_STOP_CODE_LOAD_ACCUM:
+			sm->attr[a].bytes = 4;
+			sm->attr[a].flags = SMART_ATTR_F_BE;
+		}
+
+		sm->attr[a].raw = param->data;
+		sm->attr[a].thresh = NULL;
+
+		p += 4 + param->length;
+
+		a++;
+	}
+
+	sm->count = a;
 }
 
 /*
