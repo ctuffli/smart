@@ -1,0 +1,77 @@
+#!/bin/sh
+# Copyright (c) 2017 Chuck Tuffli
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# Sample script to parse output from smart(8) for an ATA drive
+# All positional arguments are passed to smart(8)
+# 
+# Examples:
+#    scsismart ada0
+#    scsismart -i ada0
+
+./smart $* | awk '
+/^[A-Z]/
+/^208 1\>/	{print "Read Error Rate", $3; next}
+/^208 2\>/	{print "Throughput Performance", $3; next}
+/^208 3/	{print "Spin-Up Time", $3; next}
+/^208 4/	{print "Start/Stop Count", $3; next}
+/^208 5/	{print "Reallocated Sectors Count", $3; next}
+/^208 6/	{print "Read Channel Margin", $3; next}
+/^208 7/	{print "Seek Error Rate", $3; next}
+/^208 8/	{print "Seek Time Performance", $3; next}
+/^208 9/	{print "Power-On Hours", $3; next}
+/^208 10/	{print "Spin Retry Count", $3; next}
+/^208 11/	{print "Recalibration Retries", $3; next}
+/^208 12/	{print "Power Cycle Count", $3; next}
+/^208 13/	{print "Soft Read Error Rate", $3; next}
+/^208 22/	{print "Current Helium Level", $3; next}
+/^208 170/	{print "Available Reserved Space", $3; next}
+/^208 171/	{print "SSD Program Fail Count", $3; next}
+/^208 172/	{print "SSD Erase Fail Count", $3; next}
+/^208 173/	{print "SSD Wear Leveling Count", $3; next}
+/^208 174/	{print "Unexpected Power Loss Count", $3; next}
+/^208 175/	{print "Power Loss Protection Failure", $3; next}
+/^208 176/	{print "Erase Fail Count", $3; next}
+/^208 177/	{print "Wear Range Delta", $3; next}
+/^208 179/	{print "Used Reserved Block Count Total", $3; next}
+/^208 180/	{print "Unused Reserved Block count Total", $3; next}
+/^208 181/	{print "Program Fail Count Total", $3; next}
+/^208 182/	{print "Erase Fail Count", $3; next}
+/^208 183/	{print "SATA Downshift Error Count", $3; next}
+/^208 184/	{print "End-to-End error", $3; next}
+/^208 185/	{print "Head Stability", $3; next}
+/^208 186/	{print "Induced Op-Vibration Detection", $3; next}
+/^208 187/	{print "Reported Uncorrectable Errors", $3; next}
+/^208 188/	{print "Command Timeout", $3; next}
+/^208 189/	{print "High Fly Writes", $3; next}
+/^208 190/	{print "Temperature Difference", $3; next}
+/^208 191/	{print "G-sense Error Rate", $3; next}
+/^208 192/	{print "Power-off Retract Count", $3; next}
+/^208 193/	{print "Load Cycle Count", $3; next}
+/^208 194/	{print "Temperature", $3; next}
+/^208 195/	{print "Hardware ECC Recovered", $3; next}
+/^208 196/	{print "Reallocation Event Count", $3; next}
+/^208 197/	{print "Current Pending Sector", $3; next}
+/^208 198/	{print "Uncorrectable Sector Count", $3; next}
+/^208 199/	{print "UltraDMA CRC Error Count", $3; next}
+/^208 200/	{print "Multi-Zone Error Rate", $3; next}
+/^208 201/	{print "Soft Read Error Rate", $3; next}
+/^208 202/	{print "Data Address Mark Errors", $3; next}
+# fatigue sets in here. cherry-picking begins ...
+/^208 206/	{print "Flying Height", $3; next}
+/^208 235/	{print "Good Block Count", $3; next}
+/^208 241/	{print "Total LBAs Written", $3; next}
+# By using next in the previous patterns, this acts as a catch-all
+/^208/		{print "Unknown", $2, $3}
+'
