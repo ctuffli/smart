@@ -21,6 +21,7 @@
 
 #include "libsmart.h"
 
+#define SMART_NAME "smart"
 #define SMART_VERSION	"0.0.3"
 
 static struct option opts[] = {
@@ -50,6 +51,7 @@ main(int argc, char *argv[])
 {
 	smart_h h;
 	smart_map_t *sm = NULL;
+	char *devname = NULL;
 	int ch;
 	bool do_thresh = false, do_hex = false, do_info = false, do_version = false;
 	int32_t  attr = -1;
@@ -58,7 +60,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt_long(argc, argv, "htxa:iv", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
-			usage(argv[0]);
+			usage(SMART_NAME);
 			return EXIT_SUCCESS;
 			break;
 		case 't':
@@ -78,14 +80,13 @@ main(int argc, char *argv[])
 			do_version = true;
 			break;
 		default:
-			printf("unknown option %c\n", ch);
-			usage(argv[0]);
+			usage(SMART_NAME);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (do_version) {
-		printf("smart, version %s\n", SMART_VERSION);
+		printf("%s, version %s\n", SMART_NAME, SMART_VERSION);
 		printf("Copyright (c) 2016-2017 Chuck Tuffli\n"
 				"This is free software; see the source for copying conditions.\n");
 		return EXIT_SUCCESS;
@@ -93,6 +94,14 @@ main(int argc, char *argv[])
 
 	argc -= optind;
 	argv += optind;
+
+	devname = argv[0];
+
+	if (!devname) {
+		printf("no device specified\n");
+		usage(SMART_NAME);
+		return EXIT_FAILURE;
+	}
 
 	h = smart_open(SMART_PROTO_AUTO, argv[0]);
 
