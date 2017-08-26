@@ -17,25 +17,25 @@
 # All positional arguments are passed to smart(8)
 # 
 # Examples:
-#    scsismart ada0
-#    scsismart -i ada0
+#    atasmart ada0
+#    atasmart -i ada0
 
 ./smart $* | awk '
 /^[A-Z]/
-/^208 1\>/	{print "Read Error Rate", $3; next}
-/^208 2\>/	{print "Throughput Performance", $3; next}
-/^208 3/	{print "Spin-Up Time", $3; next}
-/^208 4/	{print "Start/Stop Count", $3; next}
-/^208 5/	{print "Reallocated Sectors Count", $3; next}
-/^208 6/	{print "Read Channel Margin", $3; next}
-/^208 7/	{print "Seek Error Rate", $3; next}
-/^208 8/	{print "Seek Time Performance", $3; next}
-/^208 9/	{print "Power-On Hours", $3; next}
-/^208 10/	{print "Spin Retry Count", $3; next}
-/^208 11/	{print "Recalibration Retries", $3; next}
-/^208 12/	{print "Power Cycle Count", $3; next}
-/^208 13/	{print "Soft Read Error Rate", $3; next}
-/^208 22/	{print "Current Helium Level", $3; next}
+/^208 1 /	{print "Read Error Rate", $3; next}
+/^208 2 /	{print "Throughput Performance", $3; next}
+/^208 3 /	{print "Spin-Up Time", $3; next}
+/^208 4 /	{print "Start/Stop Count", $3; next}
+/^208 5 /	{print "Reallocated Sectors Count", $3; next}
+/^208 6 /	{print "Read Channel Margin", $3; next}
+/^208 7 /	{print "Seek Error Rate", $3; next}
+/^208 8 /	{print "Seek Time Performance", $3; next}
+/^208 9 /	{print "Power-On Hours", $3; next}
+/^208 10 /	{print "Spin Retry Count", $3; next}
+/^208 11 /	{print "Recalibration Retries", $3; next}
+/^208 12 /	{print "Power Cycle Count", $3; next}
+/^208 13 /	{print "Soft Read Error Rate", $3; next}
+/^208 22 /	{print "Current Helium Level", $3; next}
 /^208 170/	{print "Available Reserved Space", $3; next}
 /^208 171/	{print "SSD Program Fail Count", $3; next}
 /^208 172/	{print "SSD Erase Fail Count", $3; next}
@@ -70,7 +70,13 @@
 /^208 202/	{print "Data Address Mark Errors", $3; next}
 # fatigue sets in here. cherry-picking begins ...
 /^208 206/	{print "Flying Height", $3; next}
+/^208 220/	{print "Disk Shift", $3; next}
+/^208 222/	{print "Loaded Hours", $3; next}
+/^208 223/	{print "Load/Unload Retry Count", $3; next}
+/^208 224/	{print "Load Friction", $3; next}
+/^208 226/	{print "Load 'In'-time", $3; next}
 /^208 235/	{print "Good Block Count", $3; next}
+/^208 240/	{print "Head Flying Hours", $3; next}
 /^208 241/	{print "Total LBAs Written", $3; next}
 # By using next in the previous patterns, this acts as a catch-all
 /^208/		{print "Unknown", $2, $3}
