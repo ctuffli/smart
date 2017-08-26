@@ -22,7 +22,9 @@
 #include "libsmart.h"
 
 #define SMART_NAME "smart"
-#define SMART_VERSION	"0.0.3"
+#define SMART_VERSION	"0.0.4"
+
+bool do_debug = false;
 
 static struct option opts[] = {
 	{ "help", no_argument, NULL, 'h' },
@@ -31,6 +33,7 @@ static struct option opts[] = {
 	{ "attribute", required_argument, NULL, 'a' },
 	{ "info", no_argument, NULL, 'i' },
 	{ "version", no_argument, NULL, 'v' },
+	{ "debug", no_argument, NULL, 'd' },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -44,6 +47,7 @@ usage(const char *name)
 	printf("\t-a, --attribute : print a specific attribute\n");
 	printf("\t-i, --info : print general device information\n");
 	printf("\t-v, --version : print the version and copyright\n");
+	printf("\t-d, --debug : output diagnostic information\n");
 }
 
 int
@@ -57,7 +61,7 @@ main(int argc, char *argv[])
 	int32_t  attr = -1;
 	int rc = EXIT_SUCCESS;
 
-	while ((ch = getopt_long(argc, argv, "htxa:iv", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "htxa:ivd", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
 			usage(SMART_NAME);
@@ -78,6 +82,9 @@ main(int argc, char *argv[])
 			break;
 		case 'v':
 			do_version = true;
+			break;
+		case 'd':
+			do_debug = true;
 			break;
 		default:
 			usage(SMART_NAME);

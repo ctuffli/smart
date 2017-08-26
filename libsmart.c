@@ -69,11 +69,39 @@ static smart_map_t *__smart_map(smart_h h, smart_buf_t *sb);
 static smart_page_list_t *__smart_page_list(smart_h h);
 static int32_t __smart_read_pages(smart_h h, smart_buf_t *sb);
 
+static char *
+smart_proto_str(smart_protocol_e p)
+{
+
+	switch (p) {
+	case SMART_PROTO_AUTO:
+		return "auto";
+	case SMART_PROTO_ATA:
+		return "ATA";
+	case SMART_PROTO_SCSI:
+		return "SCSI";
+	case SMART_PROTO_NVME:
+		return "NVME";
+	default:
+		return "Unknown";
+	}
+}
+
 smart_h
 smart_open(smart_protocol_e protocol, char *devname)
 {
+	smart_t *s;
 
-	return device_open(protocol, devname);
+	s = device_open(protocol, devname);
+
+	if (s) {
+		dprintf("protocol %s (specified %s%s)\n",
+				smart_proto_str(s->protocol),
+				smart_proto_str(protocol),
+				s->info.tunneled ?  ", tunneled ATA" : "");
+	}
+
+	return s;
 }
 
 void
@@ -91,6 +119,7 @@ smart_supported(smart_h h)
 
 	if (s) {
 		supported = s->info.supported;
+		dprintf("SMART is %ssupported\n", s->info.supported ? "" : "not ");
 	}
 
 	return supported;
@@ -986,6 +1015,7 @@ __smart_read_pages(smart_h h, smart_buf_t *sb)
 	for (p = 0; p < s->pg_list->pg_count; p++) {
 		rc = device_read_log(h, plist->pages[p].id, buf, plist->pages[p].bytes);
 		if (rc) {
+			dprintf("bad read (%d) from page %#x\n", rc, plist->pages[p].id);
 			break; 
 		}
 

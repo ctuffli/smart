@@ -287,7 +287,10 @@ __device_proto_tunneled(struct fbsd_smart *fsmart)
 
 	if ((cam_send_ccb(fsmart->camdev, ccb) >= 0) &&
 			((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+		dprintf("Looking for page %#x (total = %u):\n", SVPD_ATA_INFORMATION,
+				supportedp.length);
 		for (i = 0; i < supportedp.length; i++) {
+			dprintf("\t[%u] = %#x\n", i, supportedp.list[i]);
 			if (supportedp.list[i] == SVPD_ATA_INFORMATION) {
 				is_tunneled = true;
 				break;
@@ -365,6 +368,8 @@ __device_info_ata(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	
 	sinfo->supported = cgd->ident_data.support.command1 &
 		ATA_SUPPORT_SMART;
+
+	dprintf("ATA command1 = %#x\n", cgd->ident_data.support.command1);
 
 	cam_strvis((uint8_t *)sinfo->device, cgd->ident_data.model,
 			sizeof(cgd->ident_data.model),
@@ -568,6 +573,8 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 
 	fsmart->common.info.supported = ident_data.support.command1 &
 		ATA_SUPPORT_SMART;
+
+	dprintf("ATA command1 = %#x\n", ident_data.support.command1);
 
 __device_info_tunneled_ata_out:
 	if (ccb) {
