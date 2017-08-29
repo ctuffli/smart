@@ -20,6 +20,7 @@
 #    atasmart ada0
 #    atasmart -i ada0
 
+# NB: the trailing spaces in the pattern are important
 ./smart $* | awk '
 /^[A-Z]/
 /^208 1 /	{print "Read Error Rate", $3; next}

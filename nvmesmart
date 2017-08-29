@@ -1,0 +1,41 @@
+#!/bin/sh
+# Copyright (c) 2017 Chuck Tuffli
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# Sample script to parse output from smart(8) for a NVMe drive
+# All positional arguments are passed to smart(8)
+# 
+# Examples:
+#    nvmesmart nda0
+#    nvmesmart -i nda0
+
+# NB: the trailing spaces in the pattern are important
+./smart $* | awk '
+/^[A-Z]/
+/^2 0 /	{print "Critical Warning", $3}
+/^2 1 /	{print "Composite Temperature", $3}
+/^2 3 /	{print "Available Spare", $3}
+/^2 4 /	{print "Available Spare Threshold", $3}
+/^2 5 /	{print "Percentage Used", $3}
+/^2 32/	{print "Data Units Read", $3}
+/^2 48/	{print "Data Units Written", $3}
+/^2 64/	{print "Host Read Commands", $3}
+/^2 80/	{print "Host Write Commands", $3}
+/^2 96/	{print "Controller Busy Time", $3}
+/^2 112/ {print "Power Cycles", $3}
+/^2 128/ {print "Power On Hours", $3}
+/^2 144/ {print "Unsafe Shutdowns", $3}
+/^2 160/ {print "Media and Data Integrity Errors", $3}
+/^2 176/ {print "Number of Error Information Log Entries", $3}
+'
