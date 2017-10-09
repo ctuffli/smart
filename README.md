@@ -37,7 +37,7 @@ page. Thus, the application outputs:
     <Log Page ID> <Attribute ID> <Attribute value>
 for each selected attribute.
 
-See the shell scripts `atasmart` and `scsismart` for examples of parsing the output.
+See the shell scripts `atasmart`, `nvmesmart`, and `scsismart` for examples of parsing the output.
 
 ### Protocol Specific Notes
 * __ATA__ : The attribute and values follow the 'standard'. The log page is the Feature value used in ATA command. Thus, the default page is 0xd0 (a.k.a SMART Read Data). 
