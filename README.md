@@ -3,13 +3,15 @@
 ### What is this repository for? ###
 
 * Application to output the SMART values of disks
-* Version 0.0.3
+* Version 0.0.4
 
 ### How do I get set up? ###
 
 Clone this repository onto a FreeBSD box and run make
 
     $ hg clone https://ctuffli@bitbucket.org/ctuffli/smart
+    or
+    $ git clone https://github.com/ctuffli/smart
     $ cd smart && make
 
 ### How to use
