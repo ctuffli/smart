@@ -25,6 +25,19 @@
 #include "libsmart.h"
 #include "libsmart_priv.h"
 
+/* Provide compatibility for FreeBSD 11.0 */
+#if (__FreeBSD_version < 1101000)
+
+struct scsi_log_informational_exceptions {
+        struct scsi_log_param_header hdr;
+#define SLP_IE_GEN                      0x0000
+        uint8_t ie_asc;
+        uint8_t ie_ascq;
+        uint8_t temperature;
+};
+
+#endif
+
 struct fbsd_smart {
 	smart_t	common;
 	struct cam_device *camdev;
