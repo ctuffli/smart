@@ -230,8 +230,8 @@ smart_free(smart_map_t *sm)
 #define RAW_DEC		"%d\n"
 
 /* Long integer version of the format macro */
-#define RAW_LHEX	"%#01.1lx\n"
-#define RAW_LDEC	"%ld\n"
+#define RAW_LHEX	"%#01.1" PRIx64 "\n"
+#define RAW_LDEC	"%" PRId64 "\n"
 
 static char *
 __smart_u128_str(smart_attr_t *sa)
