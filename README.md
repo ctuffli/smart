@@ -3,7 +3,6 @@
 ### What is this repository for? ###
 
 * Application to output the SMART values of disks
-* Version 0.0.4
 
 ### How do I get set up? ###
 
