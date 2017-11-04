@@ -13,6 +13,8 @@ Clone this repository onto a FreeBSD box and run make
     $ git clone https://github.com/ctuffli/smart
     $ cd smart && make
 
+or install it from ports ( http://www.freshports.org/sysutils/smart/ )
+
 ### How to use
     Usage: smart [-htxi] [-a <attribute id>] <device name>
             -h, --help
