@@ -190,7 +190,14 @@ __device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb 
 	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
 	uint32_t numd = 0;
 
-#if (__FreeBSD_version > 1200038)
+	/*
+	 * NVME CAM passthru
+	 *    1200000 > version > 1101510 uses nvmeio->cmd.opc
+	 *    1200059 > version > 1200038 uses nvmeio->cmd.opc
+	 *              version > 1200058 uses nvmeio->cmd.opc_fuse
+	 * grumble, grumble, grumble ...
+	 */
+#if ((__FreeBSD_version > 1200038) || ((__FreeBSD_version > 1101510) && (__FreeBSD_version < 1200000)))
 	switch (page) {
 	case NVME_LOG_HEALTH_INFORMATION:
 		numd = (sizeof(struct nvme_health_information_page) / sizeof(uint32_t));
@@ -203,7 +210,11 @@ __device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb 
 	/* Subtract 1 because NUMD is a zero based value */
 	numd--;
 
+#if (__FreeBSD_version > 1200058)
+	nvmeio->cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_GET_LOG_PAGE);
+#else
 	nvmeio->cmd.opc = NVME_OPC_GET_LOG_PAGE;
+#endif
 	nvmeio->cmd.nsid = NVME_GLOBAL_NAMESPACE_TAG;
 	nvmeio->cmd.cdw10 = page | (numd << 16);
 
