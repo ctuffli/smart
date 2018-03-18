@@ -554,16 +554,20 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 {
 	struct ata_params ident_data;
 	union ccb *ccb = NULL;
-	int32_t	rc = -1;
+	struct ata_pass_16 *ata_pass_16;
+	struct ata_cmd ata_cmd;
+	int32_t rc = -1;
 
 	ccb = cam_getccb(fsmart->camdev);
 	if (ccb == NULL) {
 		goto __device_info_tunneled_ata_out;
 	}
 
+	bzero(&ident_data, sizeof(struct ata_params));
+
 	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
-	rc = scsi_ata_pass(&ccb->csio,
+	scsi_ata_pass_16(&ccb->csio,
 			/*retries*/	1,
 			/*cbfcnp*/	NULL,
 			/*flags*/	CAM_DIR_IN,
@@ -576,21 +580,21 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 			/*sector_count*/sizeof(struct ata_params),
 			/*lba*/		0,
 			/*command*/	ATA_ATA_IDENTIFY,
-			/*device*/	0,
-			/*icc*/		0,
-			/*auxiliary*/	0,
 			/*control*/	0,
 			/*data_ptr*/	(uint8_t *)&ident_data,
 			/*dxfer_len*/	sizeof(struct ata_params),
-			/*cdb_storage*/	NULL,
-			/*cdb_storage_len*/ 0,
-			/*minimum_cmd_size*/ 0,
 			/*sense_len*/	SSD_FULL_SIZE,
 			/*timeout*/	5000
 			);
 
+	ata_pass_16 = (struct ata_pass_16 *)ccb->csio.cdb_io.cdb_bytes;
+	ata_cmd.command = ata_pass_16->command;
+	ata_cmd.control = ata_pass_16->control;
+	ata_cmd.features = ata_pass_16->features;
+
+	rc = cam_send_ccb(fsmart->camdev, ccb);
 	if (rc != 0) {
-		warnx("%s: scsi_ata_pass() failed (programmer error?)",
+		warnx("%s: scsi_ata_pass_16() failed (programmer error?)",
 				__func__);
 		goto __device_info_tunneled_ata_out;
 	}
@@ -629,8 +633,7 @@ __device_get_info(struct fbsd_smart *fsmart)
 		CCB_CLEAR_ALL_EXCEPT_HDR(cgd);
 
 		/*
-		 * XXX although convenient, GDEV_TYPE won't work for NVMe b/c
-		 * of the pointer silliness. What we get from GDEV_TYPE is:
+		 * GDEV_TYPE doesn't support NVMe. What we do get is:
 		 *  - device (ata/model, scsi/product)
 		 *  - revision (ata, scsi)
 		 *  - serial (ata)

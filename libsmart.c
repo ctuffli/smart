@@ -1013,6 +1013,7 @@ __smart_read_pages(smart_h h, smart_buf_t *sb)
 	buf = sb->b;
 
 	for (p = 0; p < s->pg_list->pg_count; p++) {
+		bzero(buf, plist->pages[p].bytes);
 		rc = device_read_log(h, plist->pages[p].id, buf, plist->pages[p].bytes);
 		if (rc) {
 			dprintf("bad read (%d) from page %#x\n", rc, plist->pages[p].id);
