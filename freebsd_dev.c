@@ -210,7 +210,7 @@ __device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb 
 	/* Subtract 1 because NUMD is a zero based value */
 	numd--;
 
-#if (__FreeBSD_version > 1200058)
+#if (__FreeBSD_version > 1200057)
 	nvmeio->cmd.opc_fuse = NVME_CMD_SET_OPC(NVME_OPC_GET_LOG_PAGE);
 #else
 	nvmeio->cmd.opc = NVME_OPC_GET_LOG_PAGE;
