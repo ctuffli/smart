@@ -441,7 +441,7 @@ __smart_attr_max_ata(smart_buf_t *sb)
 	uint32_t max = 0;
 
 	if (sb) {
-		max = (sb->bsize - 2) / 12;
+		max = 30;
 	}
 
 	return max;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,7 +22,7 @@
 #include "libsmart.h"
 
 #define SMART_NAME "smart"
-#define SMART_VERSION	"0.0.8"
+#define SMART_VERSION	"0.0.9"
 
 bool do_debug = false;
 
@@ -94,7 +94,7 @@ main(int argc, char *argv[])
 
 	if (do_version) {
 		printf("%s, version %s\n", SMART_NAME, SMART_VERSION);
-		printf("Copyright (c) 2016-2017 Chuck Tuffli\n"
+		printf("Copyright (c) 2016-2018 Chuck Tuffli\n"
 				"This is free software; see the source for copying conditions.\n");
 		return EXIT_SUCCESS;
 	}
