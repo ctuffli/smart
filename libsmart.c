@@ -223,15 +223,15 @@ smart_free(smart_map_t *sm)
 #define ID_HEX		"%#01.1x "
 #define ID_DEC		"%d "
 
-#define THRESH_HEX	"%#01.1x %#01.1x %#01.1x %#01.1x "
-#define	THRESH_DEC	"%d %d %d %d "
+#define THRESH_HEX	" %#01.1x %#01.1x %#01.1x"
+#define	THRESH_DEC	" %d %d %d"
 
-#define RAW_HEX		"%#01.1x\n"
-#define RAW_DEC		"%d\n"
+#define RAW_HEX		"%#01.1x"
+#define RAW_DEC		"%d"
 
 /* Long integer version of the format macro */
-#define RAW_LHEX	"%#01.1" PRIx64 "\n"
-#define RAW_LDEC	"%" PRId64 "\n"
+#define RAW_LHEX	"%#01.1" PRIx64
+#define RAW_LDEC	"%" PRId64
 
 static char *
 __smart_u128_str(smart_attr_t *sa)
@@ -296,8 +296,7 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 		printf(do_hex ? THRESH_HEX : THRESH_DEC,
 				*((uint8_t *)tm->attr[0].raw),
 				*((uint8_t *)tm->attr[1].raw),
-				*((uint8_t *)tm->attr[2].raw),
-				*((uint8_t *)tm->attr[3].raw));
+				*((uint8_t *)tm->attr[2].raw));
 	}
 }
 
@@ -332,14 +331,14 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 		/* Print the attribute based on its size */
 		if (sm->attr[i].flags & SMART_ATTR_F_STR) {
-			printf("%s\n", sm->attr[i].raw);
+			printf("%s", sm->attr[i].raw);
 		} else if (bytes > 8) {
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 			if (do_hex)
 				;
 			else
 				printf("%s\n", __smart_u128_str(&sm->attr[i]));
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 		} else if (bytes > 4) {
 			uint64_t v64 = 0;
@@ -357,9 +356,9 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v64 &= mask;
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 			printf(do_hex ? RAW_LHEX : RAW_LDEC, v64);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 		} else if (bytes > 2) {
 			uint32_t v32 = 0;
@@ -377,9 +376,9 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v32 &= mask;
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 			printf(do_hex ? RAW_HEX : RAW_DEC, v32);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 		} else if (bytes > 1) {
 			uint16_t v16 = 0;
@@ -397,18 +396,20 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v16 &= mask;
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 			printf(do_hex ? RAW_HEX : RAW_DEC, v16);
+
+			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 		} else if (bytes > 0) {
 			uint8_t v8 = *((uint8_t *)sm->attr[i].raw);
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 			printf(do_hex ? RAW_HEX : RAW_DEC, v8);
 
+			__smart_print_thresh(sm->attr[i].thresh, flags);
+
 		}
+
+		printf("\n");
 
 		/* We're done if printing a specific attribute */
 		if (which != -1)
@@ -501,13 +502,22 @@ __smart_map_ata_thresh(uint8_t *b)
 {
 	smart_map_t *sm = NULL;
 
-	sm = malloc(sizeof(smart_map_t) + (4 * sizeof(smart_attr_t)));
+	sm = malloc(sizeof(smart_map_t) + (3 * sizeof(smart_attr_t)));
 	if (sm) {
 		uint32_t i;
 
-		sm->count = 4;
+		sm->count = 3;
 
-		for (i = 0; i < sm->count; i++) {
+		sm->attr[0].page = 0;
+		sm->attr[0].id = 0;
+		sm->attr[0].bytes = 2;
+		sm->attr[0].flags = 0;
+		sm->attr[0].raw = b;
+		sm->attr[0].thresh = NULL;
+
+		b++;
+
+		for (i = 1; i < sm->count; i++) {
 			sm->attr[i].page = 0;
 			sm->attr[i].id = i;
 			sm->attr[i].bytes = 1;
