@@ -338,8 +338,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			else
 				printf("%s\n", __smart_u128_str(&sm->attr[i]));
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 		} else if (bytes > 4) {
 			uint64_t v64 = 0;
 			uint64_t mask = UINT64_MAX;
@@ -357,8 +355,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			v64 &= mask;
 
 			printf(do_hex ? RAW_LHEX : RAW_LDEC, v64);
-
-			__smart_print_thresh(sm->attr[i].thresh, flags);
 
 		} else if (bytes > 2) {
 			uint32_t v32 = 0;
@@ -378,8 +374,6 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			printf(do_hex ? RAW_HEX : RAW_DEC, v32);
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 		} else if (bytes > 1) {
 			uint16_t v16 = 0;
 			uint16_t mask = UINT16_MAX;
@@ -398,16 +392,13 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			printf(do_hex ? RAW_HEX : RAW_DEC, v16);
 
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 		} else if (bytes > 0) {
 			uint8_t v8 = *((uint8_t *)sm->attr[i].raw);
 
 			printf(do_hex ? RAW_HEX : RAW_DEC, v8);
-
-			__smart_print_thresh(sm->attr[i].thresh, flags);
-
 		}
+
+		__smart_print_thresh(sm->attr[i].thresh, flags);
 
 		printf("\n");
 
