@@ -95,7 +95,7 @@ device_close(smart_h h)
 	struct fbsd_smart *fsmart = h;
 
 	if (fsmart != NULL) {
-		if (fsmart->camdev !=NULL) {
+		if (fsmart->camdev != NULL) {
 			cam_close_device(fsmart->camdev);
 		}
 
@@ -247,7 +247,7 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 		rc = __device_read_ata(h, page, buf, bsize, ccb);
 		break;
 	case SMART_PROTO_SCSI:
-		__device_read_scsi(h, page, buf, bsize, ccb);
+		rc = __device_read_scsi(h, page, buf, bsize, ccb);
 		break;
 	case SMART_PROTO_NVME:
 		rc = __device_read_nvme(h, page, buf, bsize, ccb);

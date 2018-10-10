@@ -336,7 +336,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			if (do_hex)
 				;
 			else
-				printf("%s\n", __smart_u128_str(&sm->attr[i]));
+				printf("%s", __smart_u128_str(&sm->attr[i]));
 
 		} else if (bytes > 4) {
 			uint64_t v64 = 0;
