@@ -22,7 +22,7 @@
 #include "libsmart.h"
 
 #define SMART_NAME "smart"
-#define SMART_VERSION	"0.0.10"
+#define SMART_VERSION	"0.0.11"
 
 bool do_debug = false;
 
