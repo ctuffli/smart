@@ -236,10 +236,10 @@ smart_free(smart_map_t *sm)
 static char *
 __smart_u128_str(smart_attr_t *sa)
 {
-	/* log10(x) = log2(x) / log2(10) ~= log2(x) / 3.322 */
-	const uint32_t max_len = 128 / 3 + 1 + 1;
-	static char s[max_len];
-	char *p = s + max_len - 1;
+	/* Max size is log10(x) = log2(x) / log2(10) ~= log2(x) / 3.322 */
+#define MAX_LEN (128 / 3 + 1 + 1)
+	static char s[MAX_LEN];
+	char *p = s + MAX_LEN - 1;
 	uint32_t *a = (uint32_t *)sa->raw;
 	uint64_t r, d;
 	uint32_t last = 0;
