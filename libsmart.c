@@ -442,8 +442,25 @@ __smart_attr_max_ata(smart_buf_t *sb)
 static uint32_t
 __smart_attr_max_nvme(smart_buf_t *sb)
 {
+	uint32_t max = 0;
 
-	return 0;
+	if (sb) {
+		max = 512;
+	}
+
+	return max;
+}
+
+static uint32_t
+__smart_attr_max_scsi(smart_buf_t *sb)
+{
+	uint32_t max = 0;
+
+	if (sb) {
+		max = 512;
+	}
+
+	return max;
 }
 
 static uint32_t
@@ -458,6 +475,9 @@ __smart_attribute_max(smart_buf_t *sb)
 			break;
 		case SMART_PROTO_NVME:
 			count = __smart_attr_max_nvme(sb);
+			break;
+		case SMART_PROTO_SCSI:
+			count = __smart_attr_max_scsi(sb);
 			break;
 		default:
 			;
@@ -604,6 +624,7 @@ __smart_map_nvme(smart_buf_t *sb, smart_map_t *sm)
 	uint32_t vs = NVME_VS_1_0;	// XXX assume device is 1.0
 	uint32_t i, a;
 
+	sm->count = 0;
 	b = sb->b;
 
 	for (i = 0, a = 0; i < ARRAYLEN(__smart_nvme_values); i++) {
@@ -897,6 +918,10 @@ __smart_map(smart_h h, smart_buf_t *sb)
 	uint32_t max = 0;
 
 	max = sb->attr_count;
+	if (max == 0) {
+		warnx("Attribute count is zero?!?");
+		return NULL;
+	}
 
 	sm = malloc(sizeof(smart_map_t) + (max * sizeof(smart_attr_t)));
 	if (sm) {
