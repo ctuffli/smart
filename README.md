@@ -44,6 +44,6 @@ and selected by the user, are printed after the attribute value.
 See the shell scripts `atasmart`, `nvmesmart`, and `scsismart` for examples of parsing the output.
 
 ### Protocol Specific Notes
-* __ATA__ : The attribute and values follow the 'standard'. The log page is the Feature value used in ATA command. Thus, the default page is 208 / 0xd0 (a.k.a SMART Read Data). The threshold values printed are status flags, current value, and worst value.
+* __ATA__ : The attribute and values follow the 'standard'. The log page is the Feature value used in ATA command. Thus, the default page is 208 / 0xd0 (a.k.a SMART Read Data). The threshold values printed are status flags, current value, and worst value. The SMART Return Status (Feature 218 / 0xda) indicates the reliability status of the device and is sometimes used as a top-level SMART health indication. While this command does not return data, the application encodes "no errors" as 0x0 and "threshold exceeded" as 0x1 in attribute 0.
 * __NVMe__ : The Log Page is the SMART / Health Information LID value in the Get Log Page command (i.e. 0x2). The attribute ID is the byte offset within this page.
 * __SCSI__ : The Log Page ID is the Page Code value in the Mode Sense command. The attribute ID is the parameter code defined by this page (e.g. 0 in the Write Error Counters log page is 'Errors corrected without substantial delay'). The values will depend on the Page Codes supported by a drive.

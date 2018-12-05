@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2017 Chuck Tuffli
+# Copyright (c) 2017-2018 Chuck Tuffli
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -81,4 +81,5 @@
 /^208 241/	{print "Total LBAs Written", $3; next}
 # By using next in the previous patterns, this acts as a catch-all
 /^208/		{print "Unknown", $2, $3}
+/^218 0/	{print("SMART Status", $3 == 0 ? "no error" : "threshold exceeded")}
 '

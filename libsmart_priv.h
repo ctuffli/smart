@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,6 +15,9 @@
  */
 #ifndef _LIBSMART_PRIV_H
 #define _LIBSMART_PRIV_H
+
+#define PAGE_ID_ATA_SMART_READ_DATA	0xd0		/* SMART Read Data */
+#define PAGE_ID_ATA_SMART_RET_STATUS	0xda		/* SMART Return Status */
 
 extern bool do_debug;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,10 +25,15 @@
 #include "libsmart_dev.h"
 
 /* Default page lists */
+
 smart_page_list_t pg_list_ata = {
-	.pg_count = 1,
+	.pg_count = 2,
 	.pages = {
-		{ .id = 0xd0, .bytes = 512 }
+		{ .id = PAGE_ID_ATA_SMART_READ_DATA, .bytes = 512 },
+		//TODO what we really care about is the return value
+		// how do we notify the user the command came back
+		// with an error code? EXIT_FAILURE or modify the output?
+		{ .id = PAGE_ID_ATA_SMART_RET_STATUS, .bytes = 512 }
 	}
 };
 
@@ -542,16 +547,17 @@ __smart_map_ata_thresh(uint8_t *b)
 }
 
 static void
-__smart_map_ata(smart_buf_t *sb, smart_map_t *sm)
+__smart_map_ata_read_data(smart_map_t *sm, void *buf, size_t bsize)
 {
 	uint8_t *b = NULL;
 	uint8_t *b_end = NULL;
-	uint32_t i = 0;
 	uint32_t max_attr = 0;
+	uint32_t a;
 
-	max_attr = sm->count;
+	max_attr = __smart_attr_max_ata(sm->sb);
+	a = sm->count;
 
-	b = sb->b;
+	b = buf;
 
 	b += 2;
 
@@ -559,25 +565,75 @@ __smart_map_ata(smart_buf_t *sb, smart_map_t *sm)
 
 	while (b < b_end) {
 		if (*b != 0) {
-			if (i >= max_attr) {
-				warnx("More attributes (%d) than fit in map", i);
+			if ((a - sm->count) >= max_attr) {
+				warnx("More attributes (%d) than fit in map",
+						a - sm->count);
 				break;
 			}
 
-			sm->attr[i].page = 0xd0;
-			sm->attr[i].id = b[0];
-			sm->attr[i].bytes = 6;
-			sm->attr[i].flags = 0;
-			sm->attr[i].raw = b + 5;
-			sm->attr[i].thresh = __smart_map_ata_thresh(b + 1);
+			sm->attr[a].page = PAGE_ID_ATA_SMART_READ_DATA;
+			sm->attr[a].id = b[0];
+			sm->attr[a].bytes = 6;
+			sm->attr[a].flags = 0;
+			sm->attr[a].raw = b + 5;
+			sm->attr[a].thresh = __smart_map_ata_thresh(b + 1);
 
-			i++;
+			a++;
 		}
 
 		b += 12;
 	}
 
-	sm->count = i;
+	sm->count = a;
+}
+
+static void
+__smart_map_ata_return_status(smart_map_t *sm, void *buf, size_t bsize)
+{
+	uint8_t *b = NULL;
+	uint32_t a;
+
+	a = sm->count;
+
+	b = buf;
+
+	sm->attr[a].page = PAGE_ID_ATA_SMART_RET_STATUS;
+	sm->attr[a].id = 0;
+	sm->attr[a].bytes = 1;
+	sm->attr[a].flags = 0;
+	sm->attr[a].raw = b;
+	sm->attr[a].thresh = NULL;
+
+	a++;
+
+	sm->count = a;
+}
+
+static void
+__smart_map_ata(smart_h h, smart_buf_t *sb, smart_map_t *sm)
+{
+	smart_t *s = h;
+	smart_page_list_t *pg_list = NULL;
+	uint8_t *b = NULL;
+	uint32_t p;
+
+	pg_list = s->pg_list;
+	b = sb->b;
+
+	sm->count = 0;
+
+	for (p = 0; p < pg_list->pg_count; p++) {
+		switch (pg_list->pages[p].id) {
+		case PAGE_ID_ATA_SMART_READ_DATA:
+			__smart_map_ata_read_data(sm, b, pg_list->pages[p].bytes);
+			break;
+		case PAGE_ID_ATA_SMART_RET_STATUS:
+			__smart_map_ata_return_status(sm, b, pg_list->pages[p].bytes);
+			break;
+		}
+
+		b += pg_list->pages[p].bytes;
+	}
 }
 
 #ifndef ARRAYLEN
@@ -898,7 +954,7 @@ __smart_attribute_map(smart_h h, smart_buf_t *sb, smart_map_t *sm)
 
 	switch (sb->protocol) {
 	case SMART_PROTO_ATA:
-		__smart_map_ata(sb, sm);
+		__smart_map_ata(h, sb, sm);
 		break;
 	case SMART_PROTO_NVME:
 		__smart_map_nvme(sb, sm);
@@ -1042,7 +1098,8 @@ __smart_read_pages(smart_h h, smart_buf_t *sb)
 		bzero(buf, plist->pages[p].bytes);
 		rc = device_read_log(h, plist->pages[p].id, buf, plist->pages[p].bytes);
 		if (rc) {
-			dprintf("bad read (%d) from page %#x\n", rc, plist->pages[p].id);
+			dprintf("bad read (%d) from page %#x (bytes=%lu)\n", rc,
+					plist->pages[p].id, plist->pages[p].bytes);
 			break; 
 		}
 
