@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <err.h>
 #include <strings.h>
 #include <sys/endian.h>
@@ -54,9 +55,10 @@ smart_page_list_t pg_list_nvme = {
 #define PAGE_ID_SCSI_LAST_N_ERR		0x07		/* Last n Error events */
 #define PAGE_ID_SCSI_TEMPERATURE	0x0d		/* Temperature */
 #define PAGE_ID_SCSI_START_STOP_CYCLE	0x0e		/* Start-Stop Cycle counter */
+#define PAGE_ID_SCSI_INFO_EXCEPTION	0x2f		/* Informational Exceptions */
 
 smart_page_list_t pg_list_scsi = {
-	.pg_count = 7,
+	.pg_count = 8,
 	.pages = {
 		{ .id = PAGE_ID_SCSI_WRITE_ERR, .bytes = 128 },
 		{ .id = PAGE_ID_SCSI_READ_ERR, .bytes = 128 },
@@ -65,6 +67,7 @@ smart_page_list_t pg_list_scsi = {
 		{ .id = PAGE_ID_SCSI_LAST_N_ERR, .bytes = 128 },
 		{ .id = PAGE_ID_SCSI_TEMPERATURE, .bytes = 64 },
 		{ .id = PAGE_ID_SCSI_START_STOP_CYCLE, .bytes = 128 },
+		{ .id = PAGE_ID_SCSI_INFO_EXCEPTION, .bytes = 64 },
 	}
 };
 
@@ -738,7 +741,7 @@ __smart_map_scsi_err_page(smart_map_t *sm, void *b, size_t bsize)
 		sm->attr[a].page = err->page_code;
 		sm->attr[a].id = be16toh(param->code);
 		sm->attr[a].bytes = param->length;
-		sm->attr[a].flags = 0;
+		sm->attr[a].flags = SMART_ATTR_F_BE;
 		sm->attr[a].raw = param->counter;
 		sm->attr[a].thresh = NULL;
 
@@ -785,7 +788,7 @@ __smart_map_scsi_last_err(smart_map_t *sm, void *b, size_t bsize)
 		sm->attr[a].page = lastn->page_code;
 		sm->attr[a].id = be16toh(event->code);
 		sm->attr[a].bytes = event->length;
-		sm->attr[a].flags = 0;
+		sm->attr[a].flags = SMART_ATTR_F_BE;
 		sm->attr[a].raw = event->data;
 		sm->attr[a].thresh = NULL;
 
@@ -804,7 +807,7 @@ __smart_map_scsi_temp(smart_map_t *sm, void *b, size_t bsize)
 		uint8_t page_code;
 		uint8_t subpage_code;
 		uint16_t page_length;
-		struct {
+		struct scsi_temperature_log_entry {
 			uint16_t code;
 			uint8_t control;
 			uint8_t length;
@@ -814,7 +817,7 @@ __smart_map_scsi_temp(smart_map_t *sm, void *b, size_t bsize)
 	} __attribute__((packed)) *temp = b;
 	uint32_t a, p, count;
 
-	count = be16toh(temp->page_length);
+	count = be16toh(temp->page_length) / sizeof(struct scsi_temperature_log_entry);
 
 	a = sm->count;
 
@@ -902,6 +905,64 @@ __smart_map_scsi_start_stop(smart_map_t *sm, void *b, size_t bsize)
 	sm->count = a;
 }
 
+static void
+__smart_map_scsi_info_exception(smart_map_t *sm, void *b, size_t bsize)
+{
+	struct scsi_info_exception_log_page {
+		uint8_t page_code;
+		uint8_t subpage_code;
+		uint16_t page_length;
+		uint8_t param[];
+	} __attribute__((packed)) *ie = b;
+	struct scsi_ie_param {
+		uint16_t code;
+		uint8_t control;
+		uint8_t length;
+		uint8_t asc;	/* IE Additional Sense Code */
+		uint8_t ascq;	/* IE Additional Sense Code Qualifier */
+		uint8_t temperature;
+	} __attribute__((packed)) *param;
+	uint32_t a, p, page_length;
+
+	a = sm->count;
+
+	p = 0;
+	page_length = be16toh(ie->page_length);
+
+	while (p < page_length) {
+		param = (struct scsi_ie_param *)(ie->param + p);
+
+		p += 4 + param->length;
+
+		sm->attr[a].page = ie->page_code;
+		sm->attr[a].id = offsetof(struct scsi_ie_param, asc);
+		sm->attr[a].bytes = 1;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = &param->asc;
+		sm->attr[a].thresh = NULL;
+		a++;
+
+		sm->attr[a].page = ie->page_code;
+		sm->attr[a].id = offsetof(struct scsi_ie_param, ascq);
+		sm->attr[a].bytes = 1;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = &param->ascq;
+		sm->attr[a].thresh = NULL;
+		a++;
+
+		sm->attr[a].page = ie->page_code;
+		sm->attr[a].id = offsetof(struct scsi_ie_param, temperature);
+		sm->attr[a].bytes = 1;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = &param->temperature;
+		sm->attr[a].thresh = NULL;
+
+		a++;
+	}
+
+	sm->count = a;
+}
+
 /*
  * Create a map based on the page list
  */
@@ -934,6 +995,9 @@ __smart_map_scsi(smart_h h, smart_buf_t *sb, smart_map_t *sm)
 			break;
 		case PAGE_ID_SCSI_START_STOP_CYCLE:
 			__smart_map_scsi_start_stop(sm, b, pg_list->pages[p].bytes);
+			break;
+		case PAGE_ID_SCSI_INFO_EXCEPTION:
+			__smart_map_scsi_info_exception(sm, b, pg_list->pages[p].bytes);
 			break;
 		}
 

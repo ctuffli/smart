@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2017 Chuck Tuffli
+# Copyright (c) 2017-2018 Chuck Tuffli
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -33,4 +33,6 @@
 /^14 2/ {print "Accounting date (yr/wk)", substr($3, 1, 4), substr($3, 5, 2)}
 /^14 3/ {print "Specified Cycle Count", $3}
 /^14 4/ {print "Accumulated Start-Stop cycles", $3}
+/^14 5/ {print "Specified Load-Unload Count Over Device Lifetime", $3}
+/^14 6/ {print "Accumulated Load-Unload Cycles", $3}
 '

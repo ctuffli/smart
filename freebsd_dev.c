@@ -206,7 +206,7 @@ __device_read_scsi(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb 
 			/* retries */1,
 			/* cbfcnp */NULL,
 			/* tag_action */0,
-			/* page_code */SL_SPF,
+			/* page_code */SLS_PAGE_CTRL_CUMULATIVE,
 			/* page */page,
 			/* save_pages */0,
 			/* ppc */0,
@@ -597,11 +597,13 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 		sinfo->serial[sizeof(sinfo->serial) - 1] = '\0';
 	}
 
+	bzero(ccb, sizeof(*ccb));
+
 	scsi_log_sense(&ccb->csio,
 			/* retries */1,
 			/* cbfcnp */NULL,
 			/* tag_action */0,
-			/* page_code */0,
+			/* page_code */SLS_PAGE_CTRL_CUMULATIVE,
 			/* page */SLS_IE_PAGE,
 			/* save_pages */0,
 			/* ppc */0,
@@ -611,6 +613,13 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 			/* sense_len */0,
 			/* timeout */5000);
 
+	/*
+	 * Note: The existance of the Informational Exceptions (IE) log page
+	 *       appears to be the litmus test for SMART support in SCSI
+	 *       devices. Confusingly, smartctl will report SMART health
+	 *       status as 'OK' if the device doesn't support the IE page.
+	 *       For now, just report the facts.
+	 */
 	if ((cam_send_ccb(fsmart->camdev, ccb) >= 0) &&
 			((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
 		if ((ie.hdr.param_len < 4) || ie.ie_asc || ie.ie_ascq) {
