@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2021 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +20,10 @@
 #include <err.h>
 #include <strings.h>
 #include <sys/endian.h>
+
+#ifdef LIBXO
+#include <libxo/xo.h>
+#endif
 
 #include "libsmart.h"
 #include "libsmart_priv.h"
@@ -228,18 +232,34 @@ smart_free(smart_map_t *sm)
 /*
  * XXX TODO some of this is ATA specific
  */
-#define ID_HEX		"%#01.1x "
-#define ID_DEC		"%d "
+#ifndef LIBXO
+#define RAW_STR		"%s"
+#else
+#define RAW_STR		"{k:raw/%s}\n"
+#endif
+
+#define ID_HEX		"%#01.1x"
+#define ID_DEC		"%d"
 
 #define THRESH_HEX	" %#01.1x %#01.1x %#01.1x"
 #define	THRESH_DEC	" %d %d %d"
 
+#ifndef LIBXO
 #define RAW_HEX		"%#01.1x"
 #define RAW_DEC		"%d"
+#else
+#define RAW_HEX		"{k:raw/%#01.1x}\n"
+#define RAW_DEC		"{k:raw/%d}\n"
+#endif
 
 /* Long integer version of the format macro */
+#ifndef LIBXO
 #define RAW_LHEX	"%#01.1" PRIx64
 #define RAW_LDEC	"%" PRId64
+#else
+#define RAW_LHEX	"{k:raw/%#01.1lx}\n"
+#define RAW_LDEC	"{k:raw/%d}\n"
+#endif
 
 static char *
 __smart_u128_str(smart_attr_t *sa)
@@ -308,6 +328,14 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 	}
 }
 
+
+#ifndef LIBXO
+#define __smart_print_val(fmt, ...) 	printf(fmt, ##__VA_ARGS__)
+#else
+#define __smart_print_val(fmt, v) 	 xo_emit(fmt, v)
+#endif
+
+
 void
 smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 {
@@ -323,6 +351,10 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 	if (flags & 0x1)
 		do_hex = true;
 
+#ifdef LIBXO
+	xo_open_container("attributes");
+	xo_open_list("attribute");
+#endif
 	for (i = 0; i < sm->count; i++) {
 		/* If we're printing a specific attribute, is this it? */
 		if ((which != -1) && (which != sm->attr[i].id)) {
@@ -331,20 +363,27 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 		/* Print the page / attribute ID if selecting all attributes */
 		if (which == -1) {
+#ifndef LIBXO
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].page);
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+#else
+			xo_open_instance("attribute");
+			xo_emit("{k:page/" ID_DEC "}{P: }", sm->attr[i].page);
+			xo_emit("{k:id/" ID_DEC "}{P: }", sm->attr[i].id);
+#endif
 		}
 
 		bytes = sm->attr[i].bytes;
 
 		/* Print the attribute based on its size */
 		if (sm->attr[i].flags & SMART_ATTR_F_STR) {
-			printf("%s", sm->attr[i].raw);
+			__smart_print_val(RAW_STR, (char *)sm->attr[i].raw);
 		} else if (bytes > 8) {
 			if (do_hex)
 				;
 			else
-				printf("%s", __smart_u128_str(&sm->attr[i]));
+				__smart_print_val(RAW_STR,
+				    __smart_u128_str(&sm->attr[i]));
 
 		} else if (bytes > 4) {
 			uint64_t v64 = 0;
@@ -362,7 +401,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v64 &= mask;
 
-			printf(do_hex ? RAW_LHEX : RAW_LDEC, v64);
+			__smart_print_val(do_hex ? RAW_LHEX : RAW_LDEC, v64);
 
 		} else if (bytes > 2) {
 			uint32_t v32 = 0;
@@ -380,7 +419,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v32 &= mask;
 
-			printf(do_hex ? RAW_HEX : RAW_DEC, v32);
+			__smart_print_val(do_hex ? RAW_HEX : RAW_DEC, v32);
 
 		} else if (bytes > 1) {
 			uint16_t v16 = 0;
@@ -398,22 +437,31 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 			v16 &= mask;
 
-			printf(do_hex ? RAW_HEX : RAW_DEC, v16);
+			__smart_print_val(do_hex ? RAW_HEX : RAW_DEC, v16);
 
 		} else if (bytes > 0) {
 			uint8_t v8 = *((uint8_t *)sm->attr[i].raw);
 
-			printf(do_hex ? RAW_HEX : RAW_DEC, v8);
+			__smart_print_val(do_hex ? RAW_HEX : RAW_DEC, v8);
 		}
 
 		__smart_print_thresh(sm->attr[i].thresh, flags);
 
+#ifndef LIBXO
 		printf("\n");
+#endif
 
 		/* We're done if printing a specific attribute */
 		if (which != -1)
 			break;
+#ifdef LIBXO
+		else
+			xo_close_instance("attribute");
+#endif
 	}
+#ifdef LIBXO
+	xo_close_list("attribute");
+#endif
 }
 
 void
@@ -426,13 +474,29 @@ smart_print_device_info(smart_h h)
 	}
 
 	if (*s->info.vendor != '\0')
+#ifndef LIBXO
 		printf("Vendor %s\n", s->info.vendor);
+#else
+		xo_emit("{L:Vendor}{P: }{:vendor/%s}\n", s->info.vendor);
+#endif
 	if (*s->info.device != '\0')
+#ifndef LIBXO
 		printf("Device %s\n", s->info.device);
+#else
+		xo_emit("{L:Device}{P: }{:device/%s}\n", s->info.device);
+#endif
 	if (*s->info.rev != '\0')
+#ifndef LIBXO
 		printf("Revision %s\n", s->info.rev);
+#else
+		xo_emit("{L:Revision}{P: }{:rev/%s}\n", s->info.device);
+#endif
 	if (*s->info.serial != '\0')
+#ifndef LIBXO
 		printf("Serial %s\n", s->info.serial);
+#else
+		xo_emit("{L:Serial}{P: }{:serial/%s}\n", s->info.serial);
+#endif
 }
 
 static uint32_t

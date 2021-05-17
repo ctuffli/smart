@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2021 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,6 +18,9 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <stdbool.h>
+#ifdef LIBXO
+#include <libxo/xo.h>
+#endif
 
 #include "libsmart.h"
 
@@ -61,10 +64,17 @@ main(int argc, char *argv[])
 	int32_t  attr = -1;
 	int rc = EXIT_SUCCESS;
 
+#ifdef LIBXO
+	argc = xo_parse_args(argc, argv);
+#endif
+
 	while ((ch = getopt_long(argc, argv, "htxa:ivd", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
 			usage(SMART_NAME);
+#ifdef LIBXO
+			xo_finish();
+#endif
 			return EXIT_SUCCESS;
 			break;
 		case 't':
@@ -88,6 +98,9 @@ main(int argc, char *argv[])
 			break;
 		default:
 			usage(SMART_NAME);
+#ifdef LIBXO
+			xo_finish();
+#endif
 			return EXIT_FAILURE;
 		}
 	}
@@ -107,6 +120,9 @@ main(int argc, char *argv[])
 	if (!devname) {
 		printf("no device specified\n");
 		usage(SMART_NAME);
+#ifdef LIBXO
+		xo_finish();
+#endif
 		return EXIT_FAILURE;
 	}
 
@@ -114,8 +130,15 @@ main(int argc, char *argv[])
 
 	if (h == NULL) {
 		printf("device open failed %s\n", argv[0]);
+#ifdef LIBXO
+		xo_finish();
+#endif
 		return EXIT_FAILURE;
 	}
+
+#ifdef LIBXO
+	xo_open_container("drive");
+#endif
 
 	if (do_info) {
 		smart_print_device_info(h);
@@ -139,7 +162,9 @@ main(int argc, char *argv[])
 	} else {
 		rc = EXIT_FAILURE;
 	}
-
+#ifdef LIBXO
+	xo_finish();
+#endif
 	smart_close(h);
 
 	return rc;

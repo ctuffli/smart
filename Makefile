@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016 Chuck Tuffli <chuck@tuffli.net>
+# Copyright (c) 2016-2021 Chuck Tuffli <chuck@tuffli.net>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -19,5 +19,7 @@ SRCS+=	freebsd_dev.c
 LDADD= -lcam
 MAN=
 #CFLAGS+= -ggdb -O0
+CFLAGS+= -DLIBXO
+LDADD+= -lxo
 
 .include <bsd.prog.mk>
