@@ -8,7 +8,7 @@
 
 Clone this repository onto a FreeBSD box and run make
 
-    $ hg clone https://ctuffli@bitbucket.org/ctuffli/smart
+    $ hg clone https://foss.heptapod.net/bsdutils/smart
     or
     $ git clone https://github.com/ctuffli/smart
     $ cd smart && make
