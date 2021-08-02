@@ -1163,7 +1163,9 @@ __smart_page_list_scsi(smart_t *s)
 		 * to SMART. The below assumes the supported page list from the
 		 * device and in pg_lsit_scsi are sorted in increasing order.
 		 */
+		dprintf("Supported SCSI pages:\n");
 		for (s = 0, p = 0; (s < n_supported) && (p < pmax); s++) {
+			dprintf("\t[%u] = %#x\n", s, supported_page[s]);
 			while ((supported_page[s] > pg_list_scsi.pages[p].id) &&
 					(p < pmax)) {
 				p++;

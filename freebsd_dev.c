@@ -355,6 +355,8 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 	if (fsmart == NULL)
 		return EINVAL;
 
+	dprintf("read log page %#x\n", page);
+
 	ccb = cam_getccb(fsmart->camdev);
 	if (ccb == NULL)
 		return ENOMEM;

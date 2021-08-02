@@ -21,7 +21,7 @@
 
 extern bool do_debug;
 
-#define dprintf(f, ...)	if (do_debug) printf("dbg: " f, __VA_ARGS__)
+#define dprintf(f, ...)	if (do_debug) printf("dbg: " f, ## __VA_ARGS__)
 
 typedef struct smart_info_s {
 	uint32_t supported:1,
