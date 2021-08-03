@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2017-2018 Chuck Tuffli
+# Copyright (c) 2017-2021 Chuck Tuffli
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -56,11 +56,17 @@
 /^208 187/	{print "Reported Uncorrectable Errors", $3; next}
 /^208 188/	{print "Command Timeout", $3; next}
 /^208 189/	{print "High Fly Writes", $3; next}
-/^208 190/	{print "Temperature Difference", $3; next}
+/^208 190/	{
+	print "Temperature Difference", ($3 % 256), "Min", (int($3 / (256*256)) % 256), "Max", int($3 / (256*256*256)); 
+	next
+}
 /^208 191/	{print "G-sense Error Rate", $3; next}
 /^208 192/	{print "Power-off Retract Count", $3; next}
 /^208 193/	{print "Load Cycle Count", $3; next}
-/^208 194/	{print "Temperature", $3; next}
+/^208 194/	{
+	print "Temperature", ($3 % 256), "Min", (int($3 / (256*256)) % 256), "Max", int($3 / (256*256*256*256)); 
+	next
+}
 /^208 195/	{print "Hardware ECC Recovered", $3; next}
 /^208 196/	{print "Reallocation Event Count", $3; next}
 /^208 197/	{print "Current Pending Sector", $3; next}
