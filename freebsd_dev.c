@@ -634,8 +634,7 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	}
 
 __device_info_scsi_out:
-	if (snum)
-		free(snum);
+	free(snum);
 	if (ccb)
 		cam_freeccb(ccb);
 
