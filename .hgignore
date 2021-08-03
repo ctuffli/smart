@@ -2,3 +2,6 @@ syntax: glob
 smart
 smart.debug
 smart.full
+*.o
+.depend*
+cscope*
