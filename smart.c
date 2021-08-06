@@ -28,6 +28,7 @@
 #define SMART_VERSION	"0.2.0"
 
 bool do_debug = false;
+int debugset = 0;
 
 static struct option opts[] = {
 	{ "help", no_argument, NULL, 'h' },
@@ -36,7 +37,7 @@ static struct option opts[] = {
 	{ "attribute", required_argument, NULL, 'a' },
 	{ "info", no_argument, NULL, 'i' },
 	{ "version", no_argument, NULL, 'v' },
-	{ "debug", no_argument, NULL, 'd' },
+	{ "debug", no_argument, &debugset, 1 },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -50,7 +51,7 @@ usage(const char *name)
 	printf("\t-a, --attribute : print a specific attribute\n");
 	printf("\t-i, --info : print general device information\n");
 	printf("\t-v, --version : print the version and copyright\n");
-	printf("\t-d, --debug : output diagnostic information\n");
+	printf("\t    --debug : output diagnostic information\n");
 }
 
 int
@@ -68,7 +69,7 @@ main(int argc, char *argv[])
 	argc = xo_parse_args(argc, argv);
 #endif
 
-	while ((ch = getopt_long(argc, argv, "htxa:ivd", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "htxa:iv", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
 			usage(SMART_NAME);
@@ -93,8 +94,9 @@ main(int argc, char *argv[])
 		case 'v':
 			do_version = true;
 			break;
-		case 'd':
-			do_debug = true;
+		case 0:
+			if (debugset)
+				do_debug = true;
 			break;
 		default:
 			usage(SMART_NAME);
