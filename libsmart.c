@@ -361,13 +361,15 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			continue;
 		}
 
+#ifdef LIBXO
+		xo_open_instance("attribute");
+#endif
 		/* Print the page / attribute ID if selecting all attributes */
 		if (which == -1) {
 #ifndef LIBXO
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].page);
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
 #else
-			xo_open_instance("attribute");
 			xo_emit("{k:page/" ID_DEC "}{P: }", sm->attr[i].page);
 			xo_emit("{k:id/" ID_DEC "}{P: }", sm->attr[i].id);
 #endif
@@ -461,6 +463,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 	}
 #ifdef LIBXO
 	xo_close_list("attribute");
+	xo_close_container("attributes");
 #endif
 }
 
