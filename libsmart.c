@@ -154,7 +154,8 @@ smart_read(smart_h h)
 		 */
 		if (s->pg_list == NULL) {
 			s->pg_list = __smart_page_list(s);
-			if (!s->pg_list) {
+			/* Protocols can change their mind regarding support */
+			if ((!s->pg_list) || !s->info.supported) {
 				goto smart_read_out;
 			}
 		}
@@ -1145,10 +1146,11 @@ __smart_page_list_scsi(smart_t *s)
 			bsize);
 	if (rc < 0) {
 		fprintf(stderr, "Read Supported Log Pages failed\n");
+		s->info.supported = false;
 	} else {
 		uint8_t *supported_page = b->supported_pages;
 		uint32_t n_supported = be16toh(b->page_length);
-		uint32_t s, p, pmax = pg_list_scsi.pg_count;
+		uint32_t i, p, pmax = pg_list_scsi.pg_count;
 
 		/* Build a page list using only pages the device supports */
 		pg_list = malloc(sizeof(pg_list_scsi));
@@ -1164,19 +1166,33 @@ __smart_page_list_scsi(smart_t *s)
 		 * device and in pg_lsit_scsi are sorted in increasing order.
 		 */
 		dprintf("Supported SCSI pages:\n");
-		for (s = 0, p = 0; (s < n_supported) && (p < pmax); s++) {
-			dprintf("\t[%u] = %#x\n", s, supported_page[s]);
-			while ((supported_page[s] > pg_list_scsi.pages[p].id) &&
+		for (i = 0, p = 0; (i < n_supported) && (p < pmax); i++) {
+			dprintf("\t[%u] = %#x\n", i, supported_page[i]);
+			while ((supported_page[i] > pg_list_scsi.pages[p].id) &&
 					(p < pmax)) {
 				p++;
 			}
 
-			if (supported_page[s] == pg_list_scsi.pages[p].id) {
+			if (supported_page[i] == pg_list_scsi.pages[p].id) {
 				pg_list->pages[pg_list->pg_count] = pg_list_scsi.pages[p];
 				pg_list->pg_count++;
 				p++;
 			}
 		}
+		/*
+		 * Note: The existence of the Informational Exceptions (IE) log
+		 * 	 page should be the litmus test for SMART support in
+		 * 	 SCSI devices. Confusingly, smartctl will report SMART
+		 * 	 health status as 'OK' if the device doesn't support the
+		 * 	 IE page.
+		 *
+		 *       Sadly, some devices do not support the Informational
+		 *       Exceptions page but do support other drive health
+		 *       related pages. To maintain some semblance of parity
+		 *       with smartctl, define "supported" to mean the device
+		 *       advertises any of the health-related log pages.
+		 */
+		s->info.supported = pg_list->pg_count > 0;
 	}
 
 	free(b);
