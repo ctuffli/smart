@@ -370,8 +370,8 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].page);
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
 #else
-			xo_emit("{k:page/" ID_DEC "}{P: }", sm->attr[i].page);
-			xo_emit("{k:id/" ID_DEC "}{P: }", sm->attr[i].id);
+			xo_emit("{k:page/" ID_DEC "}{P:\t}", sm->attr[i].page);
+			xo_emit("{k:id/" ID_DEC "}{P:\t}", sm->attr[i].id);
 #endif
 		}
 
@@ -480,25 +480,25 @@ smart_print_device_info(smart_h h)
 #ifndef LIBXO
 		printf("Vendor %s\n", s->info.vendor);
 #else
-		xo_emit("{L:Vendor}{P: }{:vendor/%s}\n", s->info.vendor);
+		xo_emit("{L:Vendor}{P:\t}{:vendor/%s}\n", s->info.vendor);
 #endif
 	if (*s->info.device != '\0')
 #ifndef LIBXO
 		printf("Device %s\n", s->info.device);
 #else
-		xo_emit("{L:Device}{P: }{:device/%s}\n", s->info.device);
+		xo_emit("{L:Device}{P:\t}{:device/%s}\n", s->info.device);
 #endif
 	if (*s->info.rev != '\0')
 #ifndef LIBXO
 		printf("Revision %s\n", s->info.rev);
 #else
-		xo_emit("{L:Revision}{P: }{:rev/%s}\n", s->info.device);
+		xo_emit("{L:Revision}{P:\t}{:rev/%s}\n", s->info.device);
 #endif
 	if (*s->info.serial != '\0')
 #ifndef LIBXO
 		printf("Serial %s\n", s->info.serial);
 #else
-		xo_emit("{L:Serial}{P: }{:serial/%s}\n", s->info.serial);
+		xo_emit("{L:Serial}{P:\t}{:serial/%s}\n", s->info.serial);
 #endif
 }
 
