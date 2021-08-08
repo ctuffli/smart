@@ -14,7 +14,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 PROG=	smart
-SRCS=	smart.c libsmart.c
+SRCS=	smart.c libsmart.c libsmart_desc.c
 SRCS+=	freebsd_dev.c
 LDADD= -lcam
 MAN=

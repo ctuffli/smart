@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <err.h>
-#include <strings.h>
+#include <string.h>
 #include <sys/endian.h>
 
 #ifdef LIBXO
@@ -372,6 +372,9 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 #else
 			xo_emit("{k:page/" ID_DEC "}{P:\t}", sm->attr[i].page);
 			xo_emit("{k:id/" ID_DEC "}{P:\t}", sm->attr[i].id);
+			if (sm->attr[i].description != NULL)
+				xo_emit("{:description}{P:\t}",
+				    sm->attr[i].description);
 #endif
 		}
 
@@ -643,6 +646,8 @@ __smart_map_ata_read_data(smart_map_t *sm, void *buf, size_t bsize)
 
 			sm->attr[a].page = PAGE_ID_ATA_SMART_READ_DATA;
 			sm->attr[a].id = b[0];
+			sm->attr[a].description = __smart_ata_desc(
+			    PAGE_ID_ATA_SMART_READ_DATA, sm->attr[a].id);
 			sm->attr[a].bytes = 6;
 			sm->attr[a].flags = 0;
 			sm->attr[a].raw = b + 5;
@@ -669,6 +674,8 @@ __smart_map_ata_return_status(smart_map_t *sm, void *buf, size_t bsize)
 
 	sm->attr[a].page = PAGE_ID_ATA_SMART_RET_STATUS;
 	sm->attr[a].id = 0;
+	sm->attr[a].description = __smart_ata_desc(PAGE_ID_ATA_SMART_RET_STATUS,
+	    sm->attr[a].id);
 	sm->attr[a].bytes = 1;
 	sm->attr[a].flags = 0;
 	sm->attr[a].raw = b;
@@ -1112,6 +1119,7 @@ __smart_map(smart_h h, smart_buf_t *sb)
 
 	sm = malloc(sizeof(smart_map_t) + (max * sizeof(smart_attr_t)));
 	if (sm) {
+		memset(sm, 0, sizeof(smart_map_t) + (max * sizeof(smart_attr_t)));
 		sm->sb = sb;
 
 		/* count starts as the max but is adjusted to reflect the actual number */

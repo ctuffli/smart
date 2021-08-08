@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2021 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -44,5 +44,7 @@ typedef struct smart_s {
 	smart_page_list_t *pg_list;
 	/* Device / OS specific follows this structure */
 } smart_t;
+
+char * __smart_ata_desc(uint32_t page, uint32_t id);
 
 #endif

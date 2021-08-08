@@ -41,6 +41,7 @@ struct smart_map_s;
 typedef struct smart_attr_s {
 	uint32_t page;
 	uint32_t id;
+	char *description;			/* human readable description */
 	uint32_t bytes;
 	uint32_t flags;
 #define SMART_ATTR_F_BE		0x00000001	/* Attribute is big-endian */
