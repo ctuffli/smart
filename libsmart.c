@@ -723,26 +723,43 @@ __smart_map_ata(smart_h h, smart_buf_t *sb, smart_map_t *sm)
 #define NVME_VS_1_2	NVME_VS(1,2,0)
 #define NVME_VS_1_2_1	NVME_VS(1,2,1)
 #define NVME_VS_1_3	NVME_VS(1,3,0)
+#define NVME_VS_1_4	NVME_VS(1,4,0)
 struct {
 	uint32_t off;		/* buffer offset */
 	uint32_t bytes;		/* size in bytes */
 	uint32_t ver;		/* first version available */
+	char *description;
 } __smart_nvme_values[] = {
-	{ 0, 1, NVME_VS_1_0 },	// Critical Warning
-	{ 1, 2, NVME_VS_1_0 },	// Temperature
-	{ 3, 1, NVME_VS_1_0 },	// Available Spare
-	{ 4, 1, NVME_VS_1_0 },	// Available Spare Threshold
-	{ 5, 1, NVME_VS_1_0 },	// Percentage Used
-	{ 32, 16, NVME_VS_1_0 },	// Data Units Read
-	{ 48, 16, NVME_VS_1_0 },	// Data Units Written
-	{ 64, 16, NVME_VS_1_0 },	// Host Read Commands
-	{ 80, 16, NVME_VS_1_0 },	// Host Write Commands
-	{ 96, 16, NVME_VS_1_0 },	// Controller Busy Time
-	{ 112, 16, NVME_VS_1_0 },	// Power Cycles
-	{ 128, 16, NVME_VS_1_0 },	// Power On Hours
-	{ 144, 16, NVME_VS_1_0 },	// Unsafe Shutdowns
-	{ 160, 16, NVME_VS_1_0 },	// Media Errors
-	{ 176, 16, NVME_VS_1_0 },	// Number of Error Information Log Entries
+	{   0,  1, NVME_VS_1_0, "Critical Warning" },
+	{   1,  2, NVME_VS_1_0, "Composite Temperature" },
+	{   3,  1, NVME_VS_1_0, "Available Spare" },
+	{   4,  1, NVME_VS_1_0, "Available Spare Threshold" },
+	{   5,  1, NVME_VS_1_0, "Percentage Used" },
+	{   6,  1, NVME_VS_1_4, "Endurance Group Critical Warning Summary" },
+	{  32, 16, NVME_VS_1_0, "Data Units Read" },
+	{  48, 16, NVME_VS_1_0, "Data Units Written" },
+	{  64, 16, NVME_VS_1_0, "Host Read Commands" },
+	{  80, 16, NVME_VS_1_0, "Host Write Commands" },
+	{  96, 16, NVME_VS_1_0, "Controller Busy Time" },
+	{ 112, 16, NVME_VS_1_0, "Power Cycles" },
+	{ 128, 16, NVME_VS_1_0, "Power On Hours" },
+	{ 144, 16, NVME_VS_1_0, "Unsafe Shutdowns" },
+	{ 160, 16, NVME_VS_1_0, "Media and Data Integrity Errors" },
+	{ 176, 16, NVME_VS_1_0, "Number of Error Information Log Entries" },
+	{ 192,  4, NVME_VS_1_2, "Warning Composite Temperature Time" },
+	{ 196,  4, NVME_VS_1_2, "Critical Composite Temperature Time" },
+	{ 200,  2, NVME_VS_1_2, "Temperature Sensor 1" },
+	{ 202,  2, NVME_VS_1_2, "Temperature Sensor 2" },
+	{ 204,  2, NVME_VS_1_2, "Temperature Sensor 3" },
+	{ 206,  2, NVME_VS_1_2, "Temperature Sensor 4" },
+	{ 208,  2, NVME_VS_1_2, "Temperature Sensor 5" },
+	{ 210,  2, NVME_VS_1_2, "Temperature Sensor 6" },
+	{ 212,  2, NVME_VS_1_2, "Temperature Sensor 7" },
+	{ 214,  2, NVME_VS_1_2, "Temperature Sensor 8" },
+	{ 216,  4, NVME_VS_1_3, "Thermal Management Temperature 1 Transition Count" },
+	{ 220,  4, NVME_VS_1_3, "Thermal Management Temperature 2 Transition Count" },
+	{ 224,  4, NVME_VS_1_3, "Total Time For Thermal Management Temperature 1" },
+	{ 228,  4, NVME_VS_1_3, "Total Time For Thermal Management Temperature 2" },
 };
 
 /**
@@ -764,6 +781,7 @@ __smart_map_nvme(smart_buf_t *sb, smart_map_t *sm)
 		if (vs >= __smart_nvme_values[i].ver) {
 			sm->attr[a].page = 0x2;
 			sm->attr[a].id = __smart_nvme_values[i].off;
+			sm->attr[a].description = __smart_nvme_values[i].description;
 			sm->attr[a].bytes = __smart_nvme_values[i].bytes;
 			sm->attr[a].flags = 0;
 			sm->attr[a].raw = b + __smart_nvme_values[i].off;
