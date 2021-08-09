@@ -51,16 +51,6 @@ smart_page_list_t pg_list_nvme = {
 	}
 };
 
-#define PAGE_ID_SCSI_SUPPORTED_PAGES	0x00
-#define PAGE_ID_SCSI_WRITE_ERR		0x02		/* Write Error counter */
-#define PAGE_ID_SCSI_READ_ERR		0x03		/* Read Error counter */
-#define PAGE_ID_SCSI_VERIFY_ERR		0x05		/* Verify Error counter */
-#define PAGE_ID_SCSI_NON_MEDIUM_ERR	0x06		/* Non-Medium Error */
-#define PAGE_ID_SCSI_LAST_N_ERR		0x07		/* Last n Error events */
-#define PAGE_ID_SCSI_TEMPERATURE	0x0d		/* Temperature */
-#define PAGE_ID_SCSI_START_STOP_CYCLE	0x0e		/* Start-Stop Cycle counter */
-#define PAGE_ID_SCSI_INFO_EXCEPTION	0x2f		/* Informational Exceptions */
-
 smart_page_list_t pg_list_scsi = {
 	.pg_count = 8,
 	.pages = {
@@ -223,6 +213,10 @@ smart_free(smart_map_t *sm)
 
 		if (tm) {
 			free(tm);
+		}
+
+		if (sm->attr[i].flags & SMART_ATTR_F_ALLOC) {
+			free(sm->attr[i].description);
 		}
 	}
 
@@ -821,6 +815,26 @@ __smart_map_scsi_err_page(smart_map_t *sm, void *b, size_t bsize)
 		uint8_t		counter[];
 	} __attribute__((packed)) *param = NULL;
 	uint32_t a, p, page_length;
+	char *cmd = NULL, *desc = NULL;
+
+	switch (err->page_code) {
+	case PAGE_ID_SCSI_WRITE_ERR:
+		cmd = "Write";
+		break;
+	case PAGE_ID_SCSI_READ_ERR:
+		cmd = "Read";
+		break;
+	case PAGE_ID_SCSI_VERIFY_ERR:
+		cmd = "Verify";
+		break;
+	case PAGE_ID_SCSI_NON_MEDIUM_ERR:
+		cmd = "Non-Medium";
+		break;
+	default:
+		fprintf(stderr, "Unknown command %#x\n", err->page_code);
+		cmd = "Unknown";
+		break;
+	}
 
 	a = sm->count;
 
@@ -832,6 +846,19 @@ __smart_map_scsi_err_page(smart_map_t *sm, void *b, size_t bsize)
 
 		sm->attr[a].page = err->page_code;
 		sm->attr[a].id = be16toh(param->code);
+		desc = __smart_scsi_err_desc(sm->attr[a].id);
+		if (desc != NULL) {
+			size_t bytes;
+			char *str;
+
+			bytes = snprintf(NULL, 0, "%s %s", cmd, desc);
+			str = malloc(bytes + 1);
+			if (str != NULL) {
+				snprintf(str, bytes + 1, "%s %s", cmd, desc);
+				sm->attr[a].description = str;
+				sm->attr[a].flags |= SMART_ATTR_F_ALLOC;
+			}
+		}
 		sm->attr[a].bytes = param->length;
 		sm->attr[a].flags = SMART_ATTR_F_BE;
 		sm->attr[a].raw = param->counter;
@@ -914,11 +941,13 @@ __smart_map_scsi_temp(smart_map_t *sm, void *b, size_t bsize)
 	a = sm->count;
 
 	for (p = 0; p < count; p++) {
-		switch (be16toh(temp->param[p].code)) {
+		uint16_t code = be16toh(temp->param[p].code);
+		switch (code) {
 		case 0:
 		case 1:
 			sm->attr[a].page = temp->page_code;
 			sm->attr[a].id = be16toh(temp->param[p].code);
+			sm->attr[a].description = code == 0 ? "Temperature" : "Reference Temperature";
 			sm->attr[a].bytes = 1;
 			sm->attr[a].flags = 0;
 			sm->attr[a].raw = &(temp->param[p].temperature);
@@ -971,19 +1000,33 @@ __smart_map_scsi_start_stop(smart_map_t *sm, void *b, size_t bsize)
 
 		sm->attr[a].page = sstop->page_code;
 		sm->attr[a].id = be16toh(param->code);
+		sm->attr[a].bytes = param->length;
 
 		switch (sm->attr[a].id) {
 		case START_STOP_CODE_DATE_MFG:
+			sm->attr[a].description = "Date of Manufacture";
+			sm->attr[a].flags = SMART_ATTR_F_STR;
+			break;
 		case START_STOP_CODE_DATE_ACCTN:
-			sm->attr[a].bytes = 6;
+			sm->attr[a].description = "Accounting Date";
 			sm->attr[a].flags = SMART_ATTR_F_STR;
 			break;
 		case START_STOP_CODE_CYCLES_LIFE:
-		case START_STOP_CODE_CYCLES_ACCUM:
-		case START_STOP_CODE_LOAD_LIFE:
-		case START_STOP_CODE_LOAD_ACCUM:
-			sm->attr[a].bytes = 4;
+			sm->attr[a].description = "Specified Cycle Count Over Device Lifetime";
 			sm->attr[a].flags = SMART_ATTR_F_BE;
+			break;
+		case START_STOP_CODE_CYCLES_ACCUM:
+			sm->attr[a].description = "Accumulated Start-Stop Cycles";
+			sm->attr[a].flags = SMART_ATTR_F_BE;
+			break;
+		case START_STOP_CODE_LOAD_LIFE:
+			sm->attr[a].description = "Specified Load-Unload Count Over Device Lifetime";
+			sm->attr[a].flags = SMART_ATTR_F_BE;
+			break;
+		case START_STOP_CODE_LOAD_ACCUM:
+			sm->attr[a].description = "Accumulated Load-Unload Cycles";
+			sm->attr[a].flags = SMART_ATTR_F_BE;
+			break;
 		}
 
 		sm->attr[a].raw = param->data;
@@ -1012,7 +1055,9 @@ __smart_map_scsi_info_exception(smart_map_t *sm, void *b, size_t bsize)
 		uint8_t length;
 		uint8_t asc;	/* IE Additional Sense Code */
 		uint8_t ascq;	/* IE Additional Sense Code Qualifier */
-		uint8_t temperature;
+		uint8_t temp_recent;
+		uint8_t temp_trip_point;
+		uint8_t temp_max;
 	} __attribute__((packed)) *param;
 	uint32_t a, p, page_length;
 
@@ -1028,6 +1073,7 @@ __smart_map_scsi_info_exception(smart_map_t *sm, void *b, size_t bsize)
 
 		sm->attr[a].page = ie->page_code;
 		sm->attr[a].id = offsetof(struct scsi_ie_param, asc);
+		sm->attr[a].description = "Informational Exception ASC";
 		sm->attr[a].bytes = 1;
 		sm->attr[a].flags = 0;
 		sm->attr[a].raw = &param->asc;
@@ -1036,6 +1082,7 @@ __smart_map_scsi_info_exception(smart_map_t *sm, void *b, size_t bsize)
 
 		sm->attr[a].page = ie->page_code;
 		sm->attr[a].id = offsetof(struct scsi_ie_param, ascq);
+		sm->attr[a].description = "Informational Exception ASCQ";
 		sm->attr[a].bytes = 1;
 		sm->attr[a].flags = 0;
 		sm->attr[a].raw = &param->ascq;
@@ -1043,12 +1090,30 @@ __smart_map_scsi_info_exception(smart_map_t *sm, void *b, size_t bsize)
 		a++;
 
 		sm->attr[a].page = ie->page_code;
-		sm->attr[a].id = offsetof(struct scsi_ie_param, temperature);
+		sm->attr[a].id = offsetof(struct scsi_ie_param, temp_recent);
+		sm->attr[a].description = "Informational Exception Most recent temperature";
 		sm->attr[a].bytes = 1;
 		sm->attr[a].flags = 0;
-		sm->attr[a].raw = &param->temperature;
+		sm->attr[a].raw = &param->temp_recent;
 		sm->attr[a].thresh = NULL;
+		a++;
 
+		sm->attr[a].page = ie->page_code;
+		sm->attr[a].id = offsetof(struct scsi_ie_param, temp_trip_point);
+		sm->attr[a].description = "Informational Exception Vendor HDA temperature trip point";
+		sm->attr[a].bytes = 1;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = &param->temp_trip_point;
+		sm->attr[a].thresh = NULL;
+		a++;
+
+		sm->attr[a].page = ie->page_code;
+		sm->attr[a].id = offsetof(struct scsi_ie_param, temp_max);
+		sm->attr[a].description = "Informational Exception Maximum temperature";
+		sm->attr[a].bytes = 1;
+		sm->attr[a].flags = 0;
+		sm->attr[a].raw = &param->temp_max;
+		sm->attr[a].thresh = NULL;
 		a++;
 	}
 

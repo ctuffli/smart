@@ -46,6 +46,7 @@ typedef struct smart_attr_s {
 	uint32_t flags;
 #define SMART_ATTR_F_BE		0x00000001	/* Attribute is big-endian */
 #define SMART_ATTR_F_STR	0x00000002	/* Attribute is a string */
+#define SMART_ATTR_F_ALLOC	0x00000004	/* Attribute description dynamically allocated */
 	void *raw;
 	struct smart_map_s *thresh;		/* Threshold values (if any) */
 } smart_attr_t;

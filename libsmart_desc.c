@@ -122,3 +122,37 @@ __smart_ata_desc(uint32_t page, uint32_t id)
 
 	return (desc);
 }
+
+char *
+__smart_scsi_err_desc(uint32_t id)
+{
+	char *param = NULL;
+
+	switch (id) {
+	case 0:
+		param = "Errors corrected without substantial delay";
+		break;
+	case 1:
+		param = "Errors corrected with possible delays";
+		break;
+	case 2:
+		param = "Total retries";
+		break;
+	case 3:
+		param = "Total errors corrected";
+		break;
+	case 4:
+		param = "Total times correction algorithm processed";
+		break;
+	case 5:
+		param = "Total bytes processed";
+		break;
+	case 6:
+		param = "Total uncorrected errors";
+		break;
+	default:
+		return (NULL);
+	}
+
+	return (param);
+}

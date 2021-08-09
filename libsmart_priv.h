@@ -19,6 +19,16 @@
 #define PAGE_ID_ATA_SMART_READ_DATA	0xd0		/* SMART Read Data */
 #define PAGE_ID_ATA_SMART_RET_STATUS	0xda		/* SMART Return Status */
 
+#define PAGE_ID_SCSI_SUPPORTED_PAGES	0x00
+#define PAGE_ID_SCSI_WRITE_ERR		0x02		/* Write Error counter */
+#define PAGE_ID_SCSI_READ_ERR		0x03		/* Read Error counter */
+#define PAGE_ID_SCSI_VERIFY_ERR		0x05		/* Verify Error counter */
+#define PAGE_ID_SCSI_NON_MEDIUM_ERR	0x06		/* Non-Medium Error */
+#define PAGE_ID_SCSI_LAST_N_ERR		0x07		/* Last n Error events */
+#define PAGE_ID_SCSI_TEMPERATURE	0x0d		/* Temperature */
+#define PAGE_ID_SCSI_START_STOP_CYCLE	0x0e		/* Start-Stop Cycle counter */
+#define PAGE_ID_SCSI_INFO_EXCEPTION	0x2f		/* Informational Exceptions */
+
 extern bool do_debug;
 
 #define dprintf(f, ...)	if (do_debug) printf("dbg: " f, ## __VA_ARGS__)
@@ -46,5 +56,6 @@ typedef struct smart_s {
 } smart_t;
 
 char * __smart_ata_desc(uint32_t page, uint32_t id);
+char * __smart_scsi_err_desc(uint32_t id);
 
 #endif
