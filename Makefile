@@ -21,5 +21,6 @@ MAN=
 #CFLAGS+= -ggdb -O0
 CFLAGS+= -DLIBXO
 LDADD+= -lxo
+LINKS= smart diskhealth
 
 .include <bsd.prog.mk>

@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <string.h>
 #ifdef LIBXO
 #include <libxo/xo.h>
 #endif
@@ -27,6 +28,7 @@
 #define SMART_NAME "smart"
 #define SMART_VERSION	"0.2.0"
 
+const char *pn;
 bool do_debug = false;
 int debugset = 0;
 
@@ -37,6 +39,8 @@ static struct option opts[] = {
 	{ "attribute", required_argument, NULL, 'a' },
 	{ "info", no_argument, NULL, 'i' },
 	{ "version", no_argument, NULL, 'v' },
+	{ "decode", no_argument, NULL, 'd' },
+	{ "no-decode", no_argument, NULL, 'D' },
 	{ "debug", no_argument, &debugset, 1 },
 	{ NULL, 0, NULL, 0 }
 };
@@ -50,6 +54,8 @@ usage(const char *name)
 	printf("\t-x, --hex : print the values out in hexadecimal\n");
 	printf("\t-a, --attribute : print a specific attribute\n");
 	printf("\t-i, --info : print general device information\n");
+	printf("\t-d, --decode: decode the attribute IDs\n");
+	printf("\t-D, --no-decode: don't decode the attribute IDs\n");
 	printf("\t-v, --version : print the version and copyright\n");
 	printf("\t    --debug : output diagnostic information\n");
 }
@@ -61,18 +67,30 @@ main(int argc, char *argv[])
 	smart_map_t *sm = NULL;
 	char *devname = NULL;
 	int ch;
-	bool do_thresh = false, do_hex = false, do_info = false, do_version = false;
+	bool do_thresh = false, do_hex = false, do_info = false, do_version = false,
+	     do_descr;
 	int32_t  attr = -1;
 	int rc = EXIT_SUCCESS;
+
+	/*
+	 * By default, keep the original behavior (output numbers only) if
+	 * invoked as smart. Otherwise, default to printing the human-friendly
+	 * text descriptions.
+	 */
+	pn = getprogname();
+	if (strcmp(pn, SMART_NAME) == 0)
+		do_descr = false;
+	else
+		do_descr = true;
 
 #ifdef LIBXO
 	argc = xo_parse_args(argc, argv);
 #endif
 
-	while ((ch = getopt_long(argc, argv, "htxa:iv", opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "htxa:idDv", opts, NULL)) != -1) {
 		switch (ch) {
 		case 'h':
-			usage(SMART_NAME);
+			usage(pn);
 #ifdef LIBXO
 			xo_finish();
 #endif
@@ -91,6 +109,12 @@ main(int argc, char *argv[])
 		case 'i':
 			do_info = true;
 			break;
+		case 'd':
+			do_descr = true;
+			break;
+		case 'D':
+			do_descr = false;
+			break;
 		case 'v':
 			do_version = true;
 			break;
@@ -99,7 +123,7 @@ main(int argc, char *argv[])
 				do_debug = true;
 			break;
 		default:
-			usage(SMART_NAME);
+			usage(pn);
 #ifdef LIBXO
 			xo_finish();
 #endif
@@ -108,7 +132,7 @@ main(int argc, char *argv[])
 	}
 
 	if (do_version) {
-		printf("%s, version %s\n", SMART_NAME, SMART_VERSION);
+		printf("%s, version %s\n", pn, SMART_VERSION);
 		printf("Copyright (c) 2016-2018 Chuck Tuffli\n"
 				"This is free software; see the source for copying conditions.\n");
 		return EXIT_SUCCESS;
@@ -121,7 +145,7 @@ main(int argc, char *argv[])
 
 	if (!devname) {
 		printf("no device specified\n");
-		usage(SMART_NAME);
+		usage(pn);
 #ifdef LIBXO
 		xo_finish();
 #endif
@@ -153,9 +177,11 @@ main(int argc, char *argv[])
 			uint32_t flags = 0;
 
 			if (do_hex)
-				flags |= 0x1;
+				flags |= SMART_OPEN_F_HEX;
 			if (do_thresh)
-				flags |= 0x2;
+				flags |= SMART_OPEN_F_THRESH;
+			if (do_descr)
+				flags |= SMART_OPEN_F_DESCR;
 
 			smart_print(h, sm, attr, flags);
 

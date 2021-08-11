@@ -308,10 +308,10 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 		return;
 	}
 
-	if (flags & 0x1)
+	if (flags & SMART_OPEN_F_HEX)
 		do_hex = true;
 
-	if (flags & 0x2)
+	if (flags & SMART_OPEN_F_THRESH)
 		do_thresh = true;
 
 	if (do_thresh && tm) {
@@ -335,15 +335,17 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 {
 	uint32_t i;
 	const char *fmt, *lfmt;
-	bool do_hex = false;
+	bool do_hex = false, do_descr = false;
 	uint32_t bytes = 0;
 
 	if (!sm) {
 		return;
 	}
 
-	if (flags & 0x1)
+	if (flags & SMART_OPEN_F_HEX)
 		do_hex = true;
+	if (flags & SMART_OPEN_F_DESCR)
+		do_descr = true;
 
 #ifdef LIBXO
 	xo_open_container("attributes");
@@ -364,11 +366,13 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].page);
 			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
 #else
-			xo_emit("{k:page/" ID_DEC "}{P:\t}", sm->attr[i].page);
-			xo_emit("{k:id/" ID_DEC "}{P:\t}", sm->attr[i].id);
-			if (sm->attr[i].description != NULL)
+			if (do_descr && (sm->attr[i].description != NULL))
 				xo_emit("{:description}{P:\t}",
 				    sm->attr[i].description);
+			else {
+				xo_emit("{k:page/" ID_DEC "}{P:\t}", sm->attr[i].page);
+				xo_emit("{k:id/" ID_DEC "}{P:\t}", sm->attr[i].id);
+			}
 #endif
 		}
 

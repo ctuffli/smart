@@ -57,6 +57,10 @@ typedef struct smart_map_s {
 	smart_attr_t attr[];			/* Array of attributes */
 } smart_map_t;
 
+#define SMART_OPEN_F_HEX	0x1		/* Print values in hexadecimal */
+#define SMART_OPEN_F_THRESH	0x2		/* Print threshold values */
+#define SMART_OPEN_F_DESCR	0x4		/* Print textual description */
+
 smart_h smart_open(smart_protocol_e p, char *devname);
 void smart_close(smart_h);
 bool smart_supported(smart_h);
