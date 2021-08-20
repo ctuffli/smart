@@ -227,33 +227,45 @@ smart_free(smart_map_t *sm)
  * XXX TODO some of this is ATA specific
  */
 #ifndef LIBXO
-#define RAW_STR		"%s"
-#else
-#define RAW_STR		"{k:raw/%s}\n"
-#endif
-
-#define ID_HEX		"%#01.1x"
-#define ID_DEC		"%d"
-
-#define THRESH_HEX	" %#01.1x %#01.1x %#01.1x"
-#define	THRESH_DEC	" %d %d %d"
-
-#ifndef LIBXO
-#define RAW_HEX		"%#01.1x"
-#define RAW_DEC		"%d"
-#else
-#define RAW_HEX		"{k:raw/%#01.1x}\n"
-#define RAW_DEC		"{k:raw/%d}\n"
-#endif
-
+# define __smart_print_val(fmt, ...) 	printf(fmt, ##__VA_ARGS__)
+# define VEND_STR	"Vendor\t%s\n"
+# define DEV_STR	"Device\t%s\n"
+# define REV_STR	"Revision\t%s\n"
+# define SERIAL_STR	"Serial\t%s\n"
+# define PAGE_HEX	"%#01.1x\t"
+# define PAGE_DEC	"%d\t"
+# define ID_HEX		"%#01.1x\t"
+# define ID_DEC		"%d\t"
+# define RAW_STR	"%s"
+# define RAW_HEX	"%#01.1x"
+# define RAW_DEC	"%d"
 /* Long integer version of the format macro */
-#ifndef LIBXO
-#define RAW_LHEX	"%#01.1" PRIx64
-#define RAW_LDEC	"%" PRId64
+# define RAW_LHEX	"%#01.1" PRIx64
+# define RAW_LDEC	"%" PRId64
+# define THRESH_HEX	"\t%#01.1x %#01.1x %#01.1x"
+# define THRESH_DEC	"\t%d %d %d"
+# define DESC_STR	"%s"
 #else
-#define RAW_LHEX	"{k:raw/%#01.1lx}\n"
-#define RAW_LDEC	"{k:raw/%d}\n"
+# define __smart_print_val(fmt, ...) 	 xo_emit(fmt, ##__VA_ARGS__)
+# define VEND_STR	"{L:Vendor}{P:\t}{:vendor/%s}\n"
+# define DEV_STR	"{L:Device}{P:\t}{:device/%s}\n"
+# define REV_STR	"{L:Revision}{P:\t}{:rev/%s}\n"
+# define SERIAL_STR	"{L:Serial}{P:\t}{:serial/%s}\n"
+# define PAGE_HEX	"{k:page/%#01.1x}{P:\t}"
+# define PAGE_DEC	"{k:page/%d}{P:\t}"
+# define ID_HEX		"{k:id/%#01.1x}{P:\t}"
+# define ID_DEC		"{k:id/%d}{P:\t}"
+# define RAW_STR	"{k:raw/%s}"
+# define RAW_HEX	"{k:raw/%#01.1x}"
+# define RAW_DEC	"{k:raw/%d}"
+/* Long integer version of the format macro */
+# define RAW_LHEX	"{k:raw/%#01.1lx}"
+# define RAW_LDEC	"{k:raw/%d}"
+# define THRESH_HEX	"{P:\t}{k:threshold/%#01.1x\t%#01.1x\t%#01.1x}"
+# define THRESH_DEC	"{P:\t}{k:threshold/%d\t%d\t%d}"
+# define DESC_STR	"{:description}{P:\t}"
 #endif
+
 
 static char *
 __smart_u128_str(smart_attr_t *sa)
@@ -315,19 +327,12 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 		do_thresh = true;
 
 	if (do_thresh && tm) {
-		printf(do_hex ? THRESH_HEX : THRESH_DEC,
+		__smart_print_val(do_hex ? THRESH_HEX : THRESH_DEC,
 				*((uint8_t *)tm->attr[0].raw),
 				*((uint8_t *)tm->attr[1].raw),
 				*((uint8_t *)tm->attr[2].raw));
 	}
 }
-
-
-#ifndef LIBXO
-#define __smart_print_val(fmt, ...) 	printf(fmt, ##__VA_ARGS__)
-#else
-#define __smart_print_val(fmt, v) 	 xo_emit(fmt, v)
-#endif
 
 
 void
@@ -362,18 +367,11 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 #endif
 		/* Print the page / attribute ID if selecting all attributes */
 		if (which == -1) {
-#ifndef LIBXO
-			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].page);
-			printf(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
-#else
 			if (do_descr && (sm->attr[i].description != NULL))
-				xo_emit("{:description}{P:\t}",
-				    sm->attr[i].description);
-			else {
-				xo_emit("{k:page/" ID_DEC "}{P:\t}", sm->attr[i].page);
-				xo_emit("{k:id/" ID_DEC "}{P:\t}", sm->attr[i].id);
-			}
-#endif
+				__smart_print_val(DESC_STR, sm->attr[i].description);
+			else
+				__smart_print_val(do_hex ? PAGE_HEX : PAGE_DEC, sm->attr[i].page);
+				__smart_print_val(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
 		}
 
 		bytes = sm->attr[i].bytes;
@@ -450,9 +448,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 		__smart_print_thresh(sm->attr[i].thresh, flags);
 
-#ifndef LIBXO
-		printf("\n");
-#endif
+		__smart_print_val("\n");
 
 		/* We're done if printing a specific attribute */
 		if (which != -1)
@@ -478,29 +474,13 @@ smart_print_device_info(smart_h h)
 	}
 
 	if (*s->info.vendor != '\0')
-#ifndef LIBXO
-		printf("Vendor %s\n", s->info.vendor);
-#else
-		xo_emit("{L:Vendor}{P:\t}{:vendor/%s}\n", s->info.vendor);
-#endif
+		__smart_print_val(VEND_STR, s->info.vendor);
 	if (*s->info.device != '\0')
-#ifndef LIBXO
-		printf("Device %s\n", s->info.device);
-#else
-		xo_emit("{L:Device}{P:\t}{:device/%s}\n", s->info.device);
-#endif
+		__smart_print_val(DEV_STR, s->info.device);
 	if (*s->info.rev != '\0')
-#ifndef LIBXO
-		printf("Revision %s\n", s->info.rev);
-#else
-		xo_emit("{L:Revision}{P:\t}{:rev/%s}\n", s->info.device);
-#endif
+		__smart_print_val(REV_STR, s->info.device);
 	if (*s->info.serial != '\0')
-#ifndef LIBXO
-		printf("Serial %s\n", s->info.serial);
-#else
-		xo_emit("{L:Serial}{P:\t}{:serial/%s}\n", s->info.serial);
-#endif
+		__smart_print_val(SERIAL_STR, s->info.serial);
 }
 
 static uint32_t
