@@ -242,8 +242,8 @@ smart_free(smart_map_t *sm)
 /* Long integer version of the format macro */
 # define RAW_LHEX	"%#01.1" PRIx64
 # define RAW_LDEC	"%" PRId64
-# define THRESH_HEX	"\t%#01.1x %#01.1x %#01.1x"
-# define THRESH_DEC	"\t%d %d %d"
+# define THRESH_HEX	"\t%#02.2x\t%#01.1x\t%#01.1x\t%#01.1x"
+# define THRESH_DEC	"\t%d\t%d\t%d\t%d"
 # define DESC_STR	"%s"
 #else
 # define __smart_print_val(fmt, ...) 	 xo_emit(fmt, ##__VA_ARGS__)
@@ -261,8 +261,8 @@ smart_free(smart_map_t *sm)
 /* Long integer version of the format macro */
 # define RAW_LHEX	"{k:raw/%#01.1lx}"
 # define RAW_LDEC	"{k:raw/%d}"
-# define THRESH_HEX	"{P:\t}{k:threshold/%#01.1x\t%#01.1x\t%#01.1x}"
-# define THRESH_DEC	"{P:\t}{k:threshold/%d\t%d\t%d}"
+# define THRESH_HEX	"{P:\t}{k:threshold/%#02.2x\t%#01.1x\t%#01.1x\t%#01.1x}"
+# define THRESH_DEC	"{P:\t}{k:threshold/%d\t%d\t%d\t%d}"
 # define DESC_STR	"{:description}{P:\t}"
 #endif
 
@@ -328,9 +328,10 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 
 	if (do_thresh && tm) {
 		__smart_print_val(do_hex ? THRESH_HEX : THRESH_DEC,
-				*((uint8_t *)tm->attr[0].raw),
+				*((uint16_t *)tm->attr[0].raw),
 				*((uint8_t *)tm->attr[1].raw),
-				*((uint8_t *)tm->attr[2].raw));
+				*((uint8_t *)tm->attr[2].raw),
+				*((uint8_t *)tm->attr[3].raw));
 	}
 }
 
@@ -569,11 +570,11 @@ __smart_map_ata_thresh(uint8_t *b)
 {
 	smart_map_t *sm = NULL;
 
-	sm = malloc(sizeof(smart_map_t) + (3 * sizeof(smart_attr_t)));
+	sm = malloc(sizeof(smart_map_t) + (4 * sizeof(smart_attr_t)));
 	if (sm) {
 		uint32_t i;
 
-		sm->count = 3;
+		sm->count = 4;
 
 		sm->attr[0].page = 0;
 		sm->attr[0].id = 0;
@@ -582,15 +583,20 @@ __smart_map_ata_thresh(uint8_t *b)
 		sm->attr[0].raw = b;
 		sm->attr[0].thresh = NULL;
 
-		b++;
+		b +=2;
 
 		for (i = 1; i < sm->count; i++) {
 			sm->attr[i].page = 0;
 			sm->attr[i].id = i;
 			sm->attr[i].bytes = 1;
 			sm->attr[i].flags = 0;
-			sm->attr[i].raw = b + i;
+			sm->attr[i].raw = b;
 			sm->attr[i].thresh = NULL;
+
+			b ++;
+
+			if (i == 2)
+				b += 6;
 		}
 	}
 
