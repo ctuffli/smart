@@ -121,7 +121,7 @@ smart_supported(smart_h h)
 
 	if (s) {
 		supported = s->info.supported;
-		dprintf("SMART is %ssupported\n", s->info.supported ? "" : "not ");
+		dprintf("SMART is %ssupported\n", supported ? "" : "not ");
 	}
 
 	return supported;
@@ -259,8 +259,8 @@ smart_free(smart_map_t *sm)
 # define RAW_HEX	"{k:raw/%#01.1x}"
 # define RAW_DEC	"{k:raw/%d}"
 /* Long integer version of the format macro */
-# define RAW_LHEX	"{k:raw/%#01.1lx}"
-# define RAW_LDEC	"{k:raw/%d}"
+# define RAW_LHEX	"{k:raw/%#01.1" PRIx64 "}"
+# define RAW_LDEC	"{k:raw/%" PRId64 "}"
 # define THRESH_HEX	"{P:\t}{k:threshold/%#02.2x\t%#01.1x\t%#01.1x\t%#01.1x}"
 # define THRESH_DEC	"{P:\t}{k:threshold/%d\t%d\t%d\t%d}"
 # define DESC_STR	"{:description}{P:\t}"
