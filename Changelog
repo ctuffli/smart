@@ -1,0 +1,13 @@
+This file documents changes for smart release
+
+version 0.3.0
+
+  - Reclaim the -d option from debug
+  - Change field separator from spaces to tab
+  - Add textual descriptions of attribute IDs for ATA, NVMe, and SCSI
+  - Add a manual page
+  - Fixes
+     * libxo structure for attribute and attributes
+     * simplify LIBXO ifdef sprawl
+     * display of threshold values
+     * display of long values
