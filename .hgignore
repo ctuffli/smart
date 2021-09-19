@@ -2,6 +2,7 @@ syntax: glob
 smart
 smart.debug
 smart.full
+smart.8.gz
 *.o
 .depend*
 cscope*
