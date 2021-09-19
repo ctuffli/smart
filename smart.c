@@ -26,7 +26,7 @@
 #include "libsmart.h"
 
 #define SMART_NAME "smart"
-#define SMART_VERSION	"0.2.0"
+#define SMART_VERSION	"0.3.0"
 
 const char *pn;
 bool do_debug = false;
@@ -133,7 +133,7 @@ main(int argc, char *argv[])
 
 	if (do_version) {
 		printf("%s, version %s\n", pn, SMART_VERSION);
-		printf("Copyright (c) 2016-2018 Chuck Tuffli\n"
+		printf("Copyright (c) 2016-2021 Chuck Tuffli\n"
 				"This is free software; see the source for copying conditions.\n");
 		return EXIT_SUCCESS;
 	}
