@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <assert.h>
 #include <err.h>
 #include <string.h>
 #include <sys/endian.h>
@@ -335,9 +336,26 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 	}
 }
 
+static bool
+__smart_attr_match(smart_matches_t *match, smart_attr_t *attr)
+{
+	uint32_t i;
+
+	assert((match != NULL) && (attr != NULL));
+
+	for (i = 0; i < match->count; i++) {
+		if ((match->m[i].page != -1) && (match->m[i].page != attr->page))
+			continue;
+
+		if (match->m[i].id == attr->id)
+			return true;
+	}
+
+	return false;
+}
 
 void
-smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
+smart_print(smart_h h, smart_map_t *sm, smart_matches_t *which, uint32_t flags)
 {
 	uint32_t i;
 	const char *fmt, *lfmt;
@@ -359,7 +377,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 #endif
 	for (i = 0; i < sm->count; i++) {
 		/* If we're printing a specific attribute, is this it? */
-		if ((which != -1) && (which != sm->attr[i].id)) {
+		if ((which != NULL) && !__smart_attr_match(which, &sm->attr[i])) {
 			continue;
 		}
 
@@ -367,7 +385,7 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 		xo_open_instance("attribute");
 #endif
 		/* Print the page / attribute ID if selecting all attributes */
-		if (which == -1) {
+		if (which == NULL) {
 			if (do_descr && (sm->attr[i].description != NULL))
 				__smart_print_val(DESC_STR, sm->attr[i].description);
 			else
@@ -451,12 +469,8 @@ smart_print(smart_h h, smart_map_t *sm, int32_t which, uint32_t flags)
 
 		__smart_print_val("\n");
 
-		/* We're done if printing a specific attribute */
-		if (which != -1)
-			break;
 #ifdef LIBXO
-		else
-			xo_close_instance("attribute");
+		xo_close_instance("attribute");
 #endif
 	}
 #ifdef LIBXO

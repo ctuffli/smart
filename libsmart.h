@@ -61,12 +61,24 @@ typedef struct smart_map_s {
 #define SMART_OPEN_F_THRESH	0x2		/* Print threshold values */
 #define SMART_OPEN_F_DESCR	0x4		/* Print textual description */
 
+/* SMART attribute to match */
+typedef struct smart_match_s {
+	int32_t page;
+	int32_t id;
+} smart_match_t;
+
+/* List of SMART attribute(s) to match */
+typedef struct smart_matches_s {
+	uint32_t count;
+	smart_match_t m[];
+} smart_matches_t;
+
 smart_h smart_open(smart_protocol_e p, char *devname);
 void smart_close(smart_h);
 bool smart_supported(smart_h);
 smart_map_t *smart_read(smart_h);
 void smart_free(smart_map_t *);
-void smart_print(smart_h, smart_map_t *, int32_t, uint32_t);
+void smart_print(smart_h, smart_map_t *, smart_matches_t *, uint32_t);
 void smart_print_device_info(smart_h);
 
 #endif

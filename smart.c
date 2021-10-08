@@ -48,16 +48,147 @@ static struct option opts[] = {
 void
 usage(const char *name)
 {
-	printf("Usage: %s [-htxi] [-a <attribute id>] <device name>\n", name);
+	printf("Usage: %s [-htxi] [-a attribute[,attribute]...] <device name>\n", name);
 	printf("\t-h, --help\n");
 	printf("\t-t, --threshold : also print out the threshold values\n");
 	printf("\t-x, --hex : print the values out in hexadecimal\n");
-	printf("\t-a, --attribute : print a specific attribute\n");
+	printf("\t-a, --attribute : print specified attribute(s)\n");
 	printf("\t-i, --info : print general device information\n");
 	printf("\t-d, --decode: decode the attribute IDs\n");
 	printf("\t-D, --no-decode: don't decode the attribute IDs\n");
 	printf("\t-v, --version : print the version and copyright\n");
 	printf("\t    --debug : output diagnostic information\n");
+}
+
+/*
+ * Convert string to an integer
+ *
+ * Returns -1 on error, converted value otherwise
+ */
+static int32_t
+get_val(char *attr, char **next)
+{
+	char *sep = NULL;
+	long val;
+
+	*next = NULL;
+
+	val = strtol(attr, &sep, 0);
+	if ((val == 0) && (errno != 0)) {
+		printf("Error parsing attribute %s", attr);
+		switch (errno) {
+		case EINVAL:
+			printf(" (not a number?)\n");
+			break;
+		case ERANGE:
+			printf(" (value out of range)\n");
+			break;
+		default:
+			printf("\n");
+		}
+		return -1;
+	}
+
+	if (val > INT32_MAX) {
+		printf("Attribute value %ld too big\n", val);
+		return -1;
+	}
+
+	*next = sep;
+	return ((int32_t)val);
+}
+
+/*
+ * Create a match specification from the given attribute
+ *
+ * Attribute format is
+ *     <Page ID>:<Attribute ID>
+ * where page and attribute IDs are integers. If the page ID is missing,
+ * match the specified attribute ID on any page (i.e. -1). Valid forms are
+ *    <int>:<int>
+ *    :<int>
+ *    <int>
+ *
+ * Returns 0 on success
+ */
+static int
+add_match(smart_matches_t **matches, char *attr)
+{
+	char *next;
+	int32_t page = -1, id;
+	uint32_t count = 0;
+
+	id = get_val(attr, &next);
+	if (id < 0)
+		return id;
+
+	if (*next == ':') {
+		page = id;
+		id = get_val(next + 1, &next);
+		if (id < 0)
+			return id;
+	}
+
+	if (*matches == NULL) {
+		*matches = calloc(1, sizeof(smart_matches_t) + sizeof(smart_match_t));
+		if (*matches == NULL)
+			return ENOMEM;
+	} else {
+		void *tmp;
+
+		count = (*matches)->count;
+		tmp = realloc(*matches, sizeof(smart_matches_t) + ((count + 1) * sizeof(smart_match_t)));
+		if (tmp == NULL)
+			return ENOMEM;
+		*matches = tmp;
+	}
+
+	(*matches)->m[count].page = page;
+	(*matches)->m[count].id = id;
+	(*matches)->count++;
+	return 0;
+}
+
+/*
+ * Parse the comma separated list of attributes to match
+ *
+ * Caller frees memory allocated for the smart_matches_t pointer.
+ *
+ * Returns 0 on success
+ */
+static int
+parse_matches(smart_matches_t **matches, char *attr)
+{
+	int res;
+
+	if (attr[0] == '\0')
+		return -1;
+
+	while (*attr != '\0') {
+		char *next;
+		size_t len;
+
+		if ((next = strchr(attr, ',')) == NULL) {
+			len = strlen(attr);
+			next = attr + len;
+		} else {
+			len = next - attr;
+			next++;
+		}
+
+		if (len == 0) {
+			printf("Malformed attribute %s\n", attr);
+			return -1;
+		}
+
+		res = add_match(matches, attr);
+		if (res)
+			return res;
+
+		attr = next;
+	}
+
+	return 0;
 }
 
 int
@@ -69,7 +200,7 @@ main(int argc, char *argv[])
 	int ch;
 	bool do_thresh = false, do_hex = false, do_info = false, do_version = false,
 	     do_descr;
-	int32_t  attr = -1;
+	smart_matches_t *matches = NULL;
 	int rc = EXIT_SUCCESS;
 
 	/*
@@ -103,8 +234,10 @@ main(int argc, char *argv[])
 			do_hex = true;
 			break;
 		case 'a':
-			// TODO use realloc() to create an array of attr to pass to smart_read() ?
-			attr = atoi(optarg);
+			if (parse_matches(&matches, optarg)) {
+				usage(pn);
+				return EXIT_FAILURE;
+			}
 			break;
 		case 'i':
 			do_info = true;
@@ -183,7 +316,7 @@ main(int argc, char *argv[])
 			if (do_descr)
 				flags |= SMART_OPEN_F_DESCR;
 
-			smart_print(h, sm, attr, flags);
+			smart_print(h, sm, matches, flags);
 
 			smart_free(sm);
 		}

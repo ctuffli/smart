@@ -26,7 +26,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd September 18, 2021
+.Dd October 8, 2021
 .Dt SMART 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dDhitvx
-.Op Fl a Ar page:attribute
+.Oo Fl a Ar page:attribute Ns Oo , Ns Ar page:attribute Oc Ns ... Oc
 .Op Fl Fl debug
 .Ar device
 .Sh DESCRIPTION
@@ -68,9 +68,9 @@ the command represents this entry with a synthetic attribute
 ID of 0, and it uses the command status (0 or 1) as the attribute
 value.
 .Pp
-NVMe devices all support the SMART/Health log page (Page ID 2 / 0x2).
+NVMe devices support the SMART/Health log page (Page ID 2 / 0x2).
 The data returned in this log page is not structured as attribute IDs.
-Instead
+Instead,
 .Nm
 uses the byte offset of each field as the attribute ID. For example,
 byte 3 is the Available Spare. Thus, for NVMe, attribute ID 3 is
@@ -104,9 +104,9 @@ Informational Exceptions (Page ID 47 / 0x2f)
 Note that all log pages are optional, and a particular drive
 may not support all these pages. For SCSI devices, the Attribute ID
 maps to the SCSI parameter code defined by the command. Parameter
-codes are integer values from 0 to N and only have meaning in the
-context of a particular log page. Note that SCSI health data does
-not include threshold values, and as a result, the command will
+codes are integer values from 0 to N, and, by themselves, are ambiguous
+outside the context of a particular log page. Note that SCSI health data
+does not include threshold values, and as a result, the command will
 ignore the
 .Fl Fl threshold
 option.
@@ -115,7 +115,8 @@ option.
 The following options are available:
 .Bl -tag -width "-d argument"
 .It Fl a Ar page:attribute , Fl Fl attribute= Ns Ar page:attribute
-Print a specific attribute.
+A comma-separated list of attributes to display.
+If page is missing, display the matching attribute from any page.
 .It Fl d , Fl Fl decode
 Decode the attribute ID values.
 .It Fl D , Fl Fl no-decode
@@ -153,6 +154,12 @@ threshold values for ATA drive ada0.
 .Bd -offset indent -compact
 Print only attribute ID 5 ("Reallocated Sectors Count") for
 ATA drive ada0.
+.Ed
+.Pp
+.Dl "# smart -a 5,171 ada0
+.Bd -offset indent -compact
+Print attribute IDs 5 ("Reallocated Sectors Count") and 171
+("SSD Program Fail") for ATA drive ada0.
 .Ed
 .Pp
 .Dl "# smart da0"
