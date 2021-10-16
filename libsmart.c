@@ -225,7 +225,9 @@ smart_free(smart_map_t *sm)
 }
 
 /*
- * XXX TODO some of this is ATA specific
+ * Format specifier for the various output types
+ * Provides versions to use with libxo and without
+ * TODO some of this is ATA specific
  */
 #ifndef LIBXO
 # define __smart_print_val(fmt, ...) 	printf(fmt, ##__VA_ARGS__)
@@ -268,6 +270,7 @@ smart_free(smart_map_t *sm)
 #endif
 
 
+/* Convert an 128-bit unsigned integer to a string */
 static char *
 __smart_u128_str(smart_attr_t *sa)
 {
@@ -336,6 +339,7 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 	}
 }
 
+/* Does the attribute match one requested by the caller? */
 static bool
 __smart_attr_match(smart_matches_t *match, smart_attr_t *attr)
 {
@@ -579,6 +583,7 @@ __smart_buffer_size(smart_h h)
 	return size;
 }
 
+/* Map SMART READ DATA threshold attributes */
 static smart_map_t *
 __smart_map_ata_thresh(uint8_t *b)
 {
@@ -617,6 +622,7 @@ __smart_map_ata_thresh(uint8_t *b)
 	return sm;
 }
 
+/* Map SMART READ DATA attributes */
 static void
 __smart_map_ata_read_data(smart_map_t *sm, void *buf, size_t bsize)
 {

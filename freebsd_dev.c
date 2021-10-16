@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2021 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -223,7 +223,7 @@ static int32_t
 __device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
 {
 	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
-	uint32_t numd = 0;
+	uint32_t numd = 0;	/* number of dwords */
 
 	/*
 	 * NVME CAM passthru
@@ -261,6 +261,12 @@ __device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb 
 	return 0;
 }
 
+/*
+ * Retrieve the SMART RETURN STATUS
+ *
+ * SMART RETURN STATUS provides the reliability status of the
+ * device and can be used as a high-level indication of health.
+ */
 static int32_t
 __device_status_ata(smart_h h, union ccb *ccb)
 {
@@ -315,8 +321,6 @@ __device_status_ata(smart_h h, union ccb *ccb)
 	switch (page) {
 	case PAGE_ID_ATA_SMART_RET_STATUS:
 		/*
-		 * SMART RETURN STATUS provides the reliability status of the
-		 * device and can be used as a high-level indication of health.
 		 * Typically, SMART related log pages return data, but this
 		 * command is different in that the data is encoded in the
 		 * result registers.
@@ -414,6 +418,11 @@ device_read_log(smart_h h, uint32_t page, void *buf, size_t bsize)
 	return 0;
 }
 
+/*
+ * The SCSI / ATA Translation (SAT) requires devices to support the ATA
+ * Information VPD Page (T10/2126-D Revision 04). Use the existence of
+ * this page to identify tunneled devices.
+ */
 static bool
 __device_proto_tunneled(struct fbsd_smart *fsmart)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2017-2021 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,9 +26,8 @@
  * with the first member being struct smart_s. The remaining members are OS
  * specific and are not used by the library.
  * 
- * @param protocol Specify the desired protocol or "auto" to automatically
- *                 detect it
- * @param devname  Specify the device name to open
+ * @param protocol The desired protocol or "auto" to automatically detect it
+ * @param devname  The device name to open
  *
  * @return An opaque handle to the device or NULL on failure
  */

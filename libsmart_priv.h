@@ -16,6 +16,8 @@
 #ifndef _LIBSMART_PRIV_H
 #define _LIBSMART_PRIV_H
 
+/* OS-independent structures and definitions internal to libsmart */
+
 #define PAGE_ID_ATA_SMART_READ_DATA	0xd0		/* SMART Read Data */
 #define PAGE_ID_ATA_SMART_RET_STATUS	0xda		/* SMART Return Status */
 
@@ -33,13 +35,25 @@ extern bool do_debug;
 
 #define dprintf(f, ...)	if (do_debug) printf("dbg: " f, ## __VA_ARGS__)
 
+/* General information about the device */
 typedef struct smart_info_s {
+		 /* device supports SMART */
 	uint32_t supported:1,
+		 /* storage protocol is tunneled (e.g. ATA inside SCSI) */
 		 tunneled:1,
 		 :30;
+	/*
+	 * Device-provided information, including
+	 *  - vendor name
+	 *  - device / model
+	 *  - firmware revision
+	 *  - serial number
+	 * Protocols may provide a subset of this information
+	 */
 	char vendor[16], device[48], rev[16], serial[32];
 } smart_info_t;
 
+/* List of pages providing SMART/health data */
 typedef struct smart_page_list_s {
 	uint32_t	pg_count;
 	struct {
@@ -48,6 +62,12 @@ typedef struct smart_page_list_s {
 	} pages[];
 } smart_page_list_t;
 
+/*
+ * The device handle (i.e. smart_h) is an opaque pointer to memory containing
+ * device/OS independent and dependent data. The library uses type punning to
+ * isolate the OS-independent portion (struct smart_s) from the OS-dependent
+ * details. Because of this, the device layer allocates and frees this memory.
+ */
 typedef struct smart_s {
 	smart_protocol_e protocol;
 	smart_info_t info;
@@ -55,7 +75,9 @@ typedef struct smart_s {
 	/* Device / OS specific follows this structure */
 } smart_t;
 
+/* Return a textual description of the ATA attribute */
 char * __smart_ata_desc(uint32_t page, uint32_t id);
+/* Return a textual description of the SCSI error attribute */
 char * __smart_scsi_err_desc(uint32_t id);
 
 #endif
