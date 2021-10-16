@@ -36,10 +36,7 @@ smart_page_list_t pg_list_ata = {
 	.pg_count = 2,
 	.pages = {
 		{ .id = PAGE_ID_ATA_SMART_READ_DATA, .bytes = 512 },
-		//TODO what we really care about is the return value
-		// how do we notify the user the command came back
-		// with an error code? EXIT_FAILURE or modify the output?
-		{ .id = PAGE_ID_ATA_SMART_RET_STATUS, .bytes = 512 }
+		{ .id = PAGE_ID_ATA_SMART_RET_STATUS, .bytes = 4 }
 	}
 };
 
