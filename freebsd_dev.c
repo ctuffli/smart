@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <strings.h>
+#include <string.h>
 #include <err.h>
 #include <errno.h>
 #include <camlib.h>
@@ -53,37 +53,38 @@ device_open(smart_protocol_e protocol, char *devname)
 	struct fbsd_smart *h = NULL;
 
 	h = malloc(sizeof(struct fbsd_smart));
-	if (h != NULL) {
-		bzero(h, sizeof(struct fbsd_smart));
+	if (h == NULL)
+		return NULL;
 
-		h->common.protocol = SMART_PROTO_MAX;
-		h->camdev = cam_open_device(devname, O_RDWR);
-		if (h->camdev == NULL) {
-			printf("%s: error opening %s - %s\n",
-					__func__, devname,
-					cam_errbuf);
-			free(h);
-			h = NULL;
+	memset(h, 0, sizeof(struct fbsd_smart));
+
+	h->common.protocol = SMART_PROTO_MAX;
+	h->camdev = cam_open_device(devname, O_RDWR);
+	if (h->camdev == NULL) {
+		printf("%s: error opening %s - %s\n",
+				__func__, devname,
+				cam_errbuf);
+		free(h);
+		h = NULL;
+	} else {
+		smart_protocol_e proto = __device_get_proto(h);
+
+		if ((protocol == SMART_PROTO_AUTO) ||
+				(protocol == proto)) {
+			h->common.protocol = proto;
 		} else {
-			smart_protocol_e proto = __device_get_proto(h);
-
-			if ((protocol == SMART_PROTO_AUTO) ||
-					(protocol == proto)) {
-				h->common.protocol = proto;
-			} else {
-				printf("%s: protocol mismatch %d vs %d\n",
-						__func__, protocol, proto);
-			}
-
-			if (proto == SMART_PROTO_SCSI) {
-				if (__device_proto_tunneled(h)) {
-					h->common.protocol = SMART_PROTO_ATA;
-					h->common.info.tunneled = 1;
-				}
-			}
-
-			__device_get_info(h);
+			printf("%s: protocol mismatch %d vs %d\n",
+					__func__, protocol, proto);
 		}
+
+		if (proto == SMART_PROTO_SCSI) {
+			if (__device_proto_tunneled(h)) {
+				h->common.protocol = SMART_PROTO_ATA;
+				h->common.info.tunneled = 1;
+			}
+		}
+
+		__device_get_info(h);
 	}
 
 	return h;
