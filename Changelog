@@ -1,5 +1,9 @@
 This file documents changes for smart release
 
+version 0.4.1
+  - Allow a comma-separated list of attributes
+  - Code refactor + update code comments
+
 version 0.3.0
 
   - Reclaim the -d option from debug
