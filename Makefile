@@ -21,6 +21,6 @@ MAN=smart.8
 #CFLAGS+= -ggdb -O0
 CFLAGS+= -DLIBXO
 LDADD+= -lxo
-LINKS= smart diskhealth
+LINKS= ${BINDIR}/smart ${BINDIR}/diskhealth
 
 .include <bsd.prog.mk>
