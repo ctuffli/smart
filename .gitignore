@@ -1,0 +1,10 @@
+
+smart
+smart.debug
+smart.full
+smart.8.gz
+*.o
+*.pieo
+.depend*
+cscope*
+ctags
