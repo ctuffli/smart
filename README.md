@@ -8,20 +8,20 @@
 
 Clone this repository onto a FreeBSD box and run make
 
-    $ hg clone https://foss.heptapod.net/bsdutils/smart
-    or
     $ git clone https://github.com/ctuffli/smart
     $ cd smart && make
 
 or install it from ports ( http://www.freshports.org/sysutils/smart/ )
 
 ### How to use
-    Usage: smart [-htxi] [-a <attribute id>] <device name>
+    Usage: smart [-htxi] [-a attribute[,attribute]...] <device name>
             -h, --help
             -t, --threshold : also print out the threshold values
             -x, --hex : print the values out in hexadecimal
-            -a, --attribute : print a specific attribute
+            -a, --attribute : print a specific attribute(s)
             -i, --info : print general device information
+            -d, --decode: decode the attribute IDs
+            -D, --no-decode: don't decode the attribute IDs
             -v, --version : print the version and copyright
 
 ### Example
@@ -29,7 +29,15 @@ or install it from ports ( http://www.freshports.org/sysutils/smart/ )
 
         smart ada0
 
-### What does the output mean?
+* List the decoded attributes of NVMe device /dev/nda0
+
+        smart -d nda0
+
+  or
+
+        diskhealth nda0
+
+### What does the raw output mean?
 The format and location of SMART / health data varies across protocols.
 To simplify the output, the application uses a Dumb Unified Model of
 SMART Buffers. In this model, SMART data is located in one or more log
@@ -42,6 +50,11 @@ for each selected attribute. Threshold values, if defined by the protocol
 and selected by the user, are printed after the attribute value.
 
 See the shell scripts `atasmart`, `nvmesmart`, and `scsismart` for examples of parsing the output.
+
+### What is the decoded output?
+Decoded output converts numeric values (Log Page, Attribute ID and Value tuples) into human-readable descriptions.
+
+The output for protocols like NVMe and SCSI which provide standardized descriptions will match the text in the specification. ATA, however, allows vendors to define their own attributes. For ATA, descriptions come from the "SMART Attribute Descriptions (SAD)" (ANSI - INCITS TR-54) specification which documents attributes common to multiple ATA drive vendors.
 
 ### Protocol Specific Notes
 * __ATA__ : The attribute and values follow the 'standard'. The log page is the Feature value used in ATA command. Thus, the default page is 208 / 0xd0 (a.k.a SMART Read Data). The threshold values printed are status flags, current value, and worst value. The SMART Return Status (Feature 218 / 0xda) indicates the reliability status of the device and is sometimes used as a top-level SMART health indication. While this command does not return data, the application encodes "no errors" as 0x0 and "threshold exceeded" as 0x1 in attribute 0.
