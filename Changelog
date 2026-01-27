@@ -1,5 +1,15 @@
 This file documents changes for smart release
 
+version 1.0.0
+ - Fix ATA threshold output (gh-10). This is a breaking change as it
+   reduces the output from 4 fields to 3 (drops the "reserved" byte
+   from threshold).
+ - Fix the ATA raw output. This is a breaking change as it increase the
+   output from 6 bytes to 7 (i.e., includes the "reserved" byte). Note
+   that while some attributes use this byte, most do not.
+ - Fix direct debug output (--debug) to standard error
+ - Use POSIX memcpy and memset instead of older bXXX equivalents
+
 version 0.4.2
  - Update README contents
 

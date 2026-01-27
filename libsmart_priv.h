@@ -33,7 +33,7 @@
 
 extern bool do_debug;
 
-#define dprintf(f, ...)	if (do_debug) printf("dbg: " f, ## __VA_ARGS__)
+#define dprintf(f, ...)	if (do_debug) fprintf(stderr, "dbg: " f, ## __VA_ARGS__)
 
 /* General information about the device */
 typedef struct smart_info_s {

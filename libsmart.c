@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021 Chuck Tuffli <chuck@tuffli.net>
+ * Copyright (c) 2016-2026 Chuck Tuffli <chuck@tuffli.net>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -242,8 +242,8 @@ smart_free(smart_map_t *sm)
 /* Long integer version of the format macro */
 # define RAW_LHEX	"%#01.1" PRIx64
 # define RAW_LDEC	"%" PRId64
-# define THRESH_HEX	"\t%#02.2x\t%#01.1x\t%#01.1x\t%#01.1x"
-# define THRESH_DEC	"\t%d\t%d\t%d\t%d"
+# define THRESH_HEX	"\t%#02.2x\t%#01.1x\t%#01.1x"
+# define THRESH_DEC	"\t%d\t%d\t%d"
 # define DESC_STR	"%s"
 #else
 # define __smart_print_val(fmt, ...) 	 xo_emit(fmt, ##__VA_ARGS__)
@@ -261,10 +261,12 @@ smart_free(smart_map_t *sm)
 /* Long integer version of the format macro */
 # define RAW_LHEX	"{k:raw/%#01.1" PRIx64 "}"
 # define RAW_LDEC	"{k:raw/%" PRId64 "}"
-# define THRESH_HEX	"{P:\t}{k:threshold/%#02.2x\t%#01.1x\t%#01.1x\t%#01.1x}"
-# define THRESH_DEC	"{P:\t}{k:threshold/%d\t%d\t%d\t%d}"
+# define THRESH_HEX	"{P:\t}{k:flags/%#02.2x}{P:\t}{k:nominal/%#01.1x}{P:\t}{k:worst/%#01.1x}"
+# define THRESH_DEC	"{P:\t}{k:flags/%d}{P:\t}{k:nominal/%d}{P:\t}{k:worst/%d}"
 # define DESC_STR	"{:description}{P:\t}"
 #endif
+
+#define THRESH_COUNT	3
 
 
 /* Convert an 128-bit unsigned integer to a string */
@@ -315,7 +317,6 @@ static void
 __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 {
 	bool do_hex = false;
-	bool do_thresh = false;
 
 	if (!tm) {
 		return;
@@ -324,16 +325,10 @@ __smart_print_thresh(smart_map_t *tm, uint32_t flags)
 	if (flags & SMART_OPEN_F_HEX)
 		do_hex = true;
 
-	if (flags & SMART_OPEN_F_THRESH)
-		do_thresh = true;
-
-	if (do_thresh && tm) {
-		__smart_print_val(do_hex ? THRESH_HEX : THRESH_DEC,
-				*((uint16_t *)tm->attr[0].raw),
-				*((uint8_t *)tm->attr[1].raw),
-				*((uint8_t *)tm->attr[2].raw),
-				*((uint8_t *)tm->attr[3].raw));
-	}
+	__smart_print_val(do_hex ? THRESH_HEX : THRESH_DEC,
+			*((uint16_t *)tm->attr[0].raw),
+			*((uint8_t *)tm->attr[1].raw),
+			*((uint8_t *)tm->attr[2].raw));
 }
 
 /* Does the attribute match one requested by the caller? */
@@ -466,7 +461,11 @@ smart_print(smart_h h, smart_map_t *sm, smart_matches_t *which, uint32_t flags)
 			__smart_print_val(do_hex ? RAW_HEX : RAW_DEC, v8);
 		}
 
-		__smart_print_thresh(sm->attr[i].thresh, flags);
+		if ((flags & SMART_OPEN_F_THRESH) && sm->attr[i].thresh) {
+			xo_open_container("threshold");
+			__smart_print_thresh(sm->attr[i].thresh, flags);
+			xo_close_container("threshold");
+		}
 
 		__smart_print_val("\n");
 
@@ -580,17 +579,21 @@ __smart_buffer_size(smart_h h)
 	return size;
 }
 
-/* Map SMART READ DATA threshold attributes */
+/*
+ * Map SMART READ DATA threshold attributes
+ *
+ * Read the 3 consecutive values (flags, nominal, and worst)
+ */
 static smart_map_t *
 __smart_map_ata_thresh(uint8_t *b)
 {
 	smart_map_t *sm = NULL;
 
-	sm = malloc(sizeof(smart_map_t) + (4 * sizeof(smart_attr_t)));
+	sm = malloc(sizeof(smart_map_t) + (THRESH_COUNT * sizeof(smart_attr_t)));
 	if (sm) {
 		uint32_t i;
 
-		sm->count = 4;
+		sm->count = THRESH_COUNT;
 
 		sm->attr[0].page = 0;
 		sm->attr[0].id = 0;
@@ -610,16 +613,27 @@ __smart_map_ata_thresh(uint8_t *b)
 			sm->attr[i].thresh = NULL;
 
 			b ++;
-
-			if (i == 2)
-				b += 6;
 		}
 	}
 
 	return sm;
 }
 
-/* Map SMART READ DATA attributes */
+/*
+ * Map SMART READ DATA attributes
+ *
+ * The format for the READ DATA buffer is:
+ *    2 bytes Revision
+ *  360 bytes Attributes (12 bytes each)
+ *   
+ * Each attribute consists of:
+ *   1 byte ID
+ *   2 byte Status Flags
+ *   1 byte Nominal value
+ *   1 byte Worst value
+ *   7 byte Raw value
+ * Note that many attributes do not use the entire 7 bytes of the raw value.
+ */
 static void
 __smart_map_ata_read_data(smart_map_t *sm, void *buf, size_t bsize)
 {
@@ -633,6 +647,7 @@ __smart_map_ata_read_data(smart_map_t *sm, void *buf, size_t bsize)
 
 	b = buf;
 
+	/* skip revision */
 	b += 2;
 
 	b_end = b + (max_attr * 12);
@@ -649,7 +664,7 @@ __smart_map_ata_read_data(smart_map_t *sm, void *buf, size_t bsize)
 			sm->attr[a].id = b[0];
 			sm->attr[a].description = __smart_ata_desc(
 			    PAGE_ID_ATA_SMART_READ_DATA, sm->attr[a].id);
-			sm->attr[a].bytes = 6;
+			sm->attr[a].bytes = 7;
 			sm->attr[a].flags = 0;
 			sm->attr[a].raw = b + 5;
 			sm->attr[a].thresh = __smart_map_ata_thresh(b + 1);
