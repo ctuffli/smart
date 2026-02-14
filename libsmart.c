@@ -410,7 +410,7 @@ smart_print(smart_h h, smart_map_t *sm, smart_matches_t *which, uint32_t flags)
 			uint64_t v64 = 0;
 			uint64_t mask = UINT64_MAX;
 
-			bcopy(sm->attr[i].raw, &v64, bytes);
+			memcpy(&v64, sm->attr[i].raw, bytes);
 
 			if (sm->attr[i].flags & SMART_ATTR_F_BE) {
 				v64 = be64toh(v64);
@@ -428,7 +428,7 @@ smart_print(smart_h h, smart_map_t *sm, smart_matches_t *which, uint32_t flags)
 			uint32_t v32 = 0;
 			uint32_t mask = UINT32_MAX;
 
-			bcopy(sm->attr[i].raw, &v32, bytes);
+			memcpy(&v32, sm->attr[i].raw, bytes);
 
 			if (sm->attr[i].flags & SMART_ATTR_F_BE) {
 				v32 = be32toh(v32);
@@ -446,7 +446,7 @@ smart_print(smart_h h, smart_map_t *sm, smart_matches_t *which, uint32_t flags)
 			uint16_t v16 = 0;
 			uint16_t mask = UINT16_MAX;
 
-			bcopy(sm->attr[i].raw, &v16, bytes);
+			memcpy(&v16, sm->attr[i].raw, bytes);
 
 			if (sm->attr[i].flags & SMART_ATTR_F_BE) {
 				v16 = be16toh(v16);
@@ -1326,7 +1326,7 @@ __smart_read_pages(smart_h h, smart_buf_t *sb)
 	buf = sb->b;
 
 	for (p = 0; p < s->pg_list->pg_count; p++) {
-		bzero(buf, plist->pages[p].bytes);
+		memset(buf, 0, plist->pages[p].bytes);
 		rc = device_read_log(h, plist->pages[p].id, buf, plist->pages[p].bytes);
 		if (rc) {
 			dprintf("bad read (%d) from page %#x (bytes=%lu)\n", rc,

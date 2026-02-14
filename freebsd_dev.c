@@ -159,7 +159,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 		}
 
 		cdb = (struct ata_pass_16 *)ccb->csio.cdb_io.cdb_bytes;
-		bzero(cdb, sizeof(*cdb));
+		memset(cdb, 0, sizeof(*cdb));
 
 		scsi_ata_pass_16(&ccb->csio,
 				/*retries*/	1,
@@ -182,7 +182,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 		cdb->lba_high = 0xc2;
 		cdb->device = 0;	/* scsi_ata_pass_16() sets this */
 	} else {
-		bcopy(smart_fis, &ccb->ataio.cmd.command, smart_fis_size);
+		memcpy(&ccb->ataio.cmd.command, smart_fis, smart_fis_size);
 
 		cam_fill_ataio(&ccb->ataio,
 				/* retries */1,
@@ -609,7 +609,7 @@ __device_info_scsi(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 		sinfo->serial[sizeof(sinfo->serial) - 1] = '\0';
 	}
 
-	bzero(ccb, sizeof(*ccb));
+	memset(ccb, 0, sizeof(*ccb));
 
 	scsi_log_sense(&ccb->csio,
 			/* retries */1,
@@ -717,7 +717,7 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 		goto __device_info_tunneled_ata_out;
 	}
 
-	bzero(&ident_data, sizeof(struct ata_params));
+	memset(&ident_data, 0, sizeof(struct ata_params));
 
 	CCB_CLEAR_ALL_EXCEPT_HDR(ccb);
 
