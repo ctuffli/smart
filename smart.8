@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 .\"
-.\" Copyright (c) 2021 Chuck Tuffli
+.\" Copyright (c) 2021-2026 Chuck Tuffli
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +26,7 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd October 8, 2021
+.Dd February 14, 2026
 .Dt SMART 8
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ Because the structure of this information varies across protocols,
 .Nm
 normalizes entries using the format:
 .Bd -literal
-	<Page ID>    <Attribute ID>    <Value>    <Threshold>
+	<Page ID>    <Attribute ID>    <Value>    <Thresholds>
 .Ed
 .Pp
 Fields are tab-delimited by default, but the command can output
@@ -64,12 +64,27 @@ data in any format supported by
 Because ATA does not have log pages,
 .Nm
 uses the Command Feature field value in place of the log page ID.
-For SMART READ DATA, this value is 208 / 0xd0. Note that devices
-choose which attribute ID values they support and the description
-for it. Additionally,
+For SMART READ DATA, this value is 208 / 0xd0.
+Note that devices choose which attribute ID values they support, their
+descriptions, and the format of the data.
+The three values displayed with the
+.Fl Fl threshold
+option are:
+.Pp
+.Bl -dash -compact -offset indent
+.It
+Status flags (byte offset 1, 2 bytes)
+.It
+Nominal attribute value (byte offset 3, 1 byte)
+.It
+Worst Ever attribute value (byte offset 4, 1 byte)
+.El
+.Pp
+Additionally,
 .Nm
 reports the value of the SMART STATUS command (Command Feature field
-value 218 / 0xda). As this command does not return any data,
+value 218 / 0xda).
+As this command does not return any data,
 the command represents this entry with a synthetic attribute
 ID of 0, and it uses the command status (0 or 1) as the attribute
 value.
@@ -78,15 +93,19 @@ NVMe devices support the SMART/Health log page (Page ID 2 / 0x2).
 The data returned in this log page is not structured as attribute IDs.
 Instead,
 .Nm
-uses the byte offset of each field as the attribute ID. For example,
-byte 3 is the Available Spare. Thus, for NVMe, attribute ID 3 is
-Available Spare. Note that NVMe health data does not include threshold
+uses the byte offset of each field as the attribute ID.
+For example,
+byte 3 is the Available Spare.
+Thus, for NVMe, attribute ID 3 is
+Available Spare.
+Note that NVMe health data does not include threshold
 values, and as a result, the command will ignore the
 .Fl Fl threshold
 option.
 .Pp
 SCSI devices can support a number of log pages which report drive
-health. The command will report the following pages:
+health.
+The command will report the following pages:
 .Pp
 .Bl -dash -compact -offset indent
 .It
@@ -108,10 +127,13 @@ Informational Exceptions (Page ID 47 / 0x2f)
 .El
 .Pp
 Note that all log pages are optional, and a particular drive
-may not support all these pages. For SCSI devices, the Attribute ID
-maps to the SCSI parameter code defined by the command. Parameter
+may not support all these pages.
+For SCSI devices, the Attribute ID
+maps to the SCSI parameter code defined by the command.
+Parameter
 codes are integer values from 0 to N, and, by themselves, are ambiguous
-outside the context of a particular log page. Note that SCSI health data
+outside the context of a particular log page.
+Note that SCSI health data
 does not include threshold values, and as a result, the command will
 ignore the
 .Fl Fl threshold
@@ -210,7 +232,8 @@ The device does not support health data.
 relies on
 .Xr cam 4
 to retrieve data from devices and will display this message if the
-device does not have a passthrough driver. This can happen, for
+device does not have a passthrough driver.
+This can happen, for
 example, if the system uses the
 .Xr nvd 4
 NVMe driver instead of the

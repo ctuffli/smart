@@ -1,4 +1,4 @@
-This file documents changes for smart release
+This file documents changes for smart releases
 
 version 1.0.0
  - Fix ATA threshold output (gh-10). This is a breaking change as it
