@@ -384,9 +384,10 @@ smart_print(smart_h h, smart_map_t *sm, smart_matches_t *which, uint32_t flags)
 		if (which == NULL) {
 			if (do_descr && (sm->attr[i].description != NULL))
 				__smart_print_val(DESC_STR, sm->attr[i].description);
-			else
+			else {
 				__smart_print_val(do_hex ? PAGE_HEX : PAGE_DEC, sm->attr[i].page);
 				__smart_print_val(do_hex ? ID_HEX : ID_DEC, sm->attr[i].id);
+			}
 		}
 
 		bytes = sm->attr[i].bytes;
