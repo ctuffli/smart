@@ -16,11 +16,10 @@
 PROG=	smart
 SRCS=	smart.c libsmart.c libsmart_desc.c
 SRCS+=	freebsd_dev.c
-LDADD= -lcam
+LIBADD= cam xo
 MAN=smart.8
 #CFLAGS+= -ggdb -O0
 CFLAGS+= -DLIBXO
-LDADD+= -lxo
 LINKS= ${BINDIR}/smart ${BINDIR}/diskhealth
 
 .include <bsd.prog.mk>
