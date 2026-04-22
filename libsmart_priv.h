@@ -76,8 +76,8 @@ typedef struct smart_s {
 } smart_t;
 
 /* Return a textual description of the ATA attribute */
-char * __smart_ata_desc(uint32_t page, uint32_t id);
+const char * __smart_ata_desc(uint32_t page, uint32_t id);
 /* Return a textual description of the SCSI error attribute */
-char * __smart_scsi_err_desc(uint32_t id);
+const char * __smart_scsi_err_desc(uint32_t id);
 
 #endif

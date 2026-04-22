@@ -19,7 +19,7 @@
 #include "libsmart_priv.h"
 
 /* Strings from "SMART Attribute Descriptions" (SAD) */
-static char *
+static const char *
 desc_ata_data[] = {
 	[1] = "Read Error Rate",
 	[2] = "Throughput Performance",
@@ -103,10 +103,10 @@ desc_ata_data[] = {
 	[254] = "Free Fall Protection"
 };
 
-char *
+const char *
 __smart_ata_desc(uint32_t page, uint32_t id)
 {
-	char *desc = NULL;
+	const char *desc = NULL;
 
 	switch (page) {
 	case PAGE_ID_ATA_SMART_READ_DATA:
@@ -123,10 +123,10 @@ __smart_ata_desc(uint32_t page, uint32_t id)
 	return (desc);
 }
 
-char *
+const char *
 __smart_scsi_err_desc(uint32_t id)
 {
-	char *param = NULL;
+	const char *param = NULL;
 
 	switch (id) {
 	case 0:

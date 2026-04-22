@@ -24,6 +24,7 @@
 
 #include "libsmart.h"
 #include "libsmart_priv.h"
+#include "libsmart_dev.h"
 
 /* Provide compatibility for FreeBSD 11.0 */
 #if (__FreeBSD_version < 1101000)
@@ -200,7 +201,7 @@ __device_read_ata(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *
 }
 
 static int32_t
-__device_read_scsi(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
+__device_read_scsi(__attribute__((unused)) smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
 {
 
 	scsi_log_sense(&ccb->csio,
@@ -221,7 +222,7 @@ __device_read_scsi(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb 
 }
 
 static int32_t
-__device_read_nvme(smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
+__device_read_nvme(__attribute__((unused)) smart_h h, uint32_t page, void *buf, size_t bsize, union ccb *ccb)
 {
 	struct ccb_nvmeio *nvmeio = &ccb->nvmeio;
 	uint32_t numd = 0;	/* number of dwords */

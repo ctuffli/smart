@@ -28,9 +28,11 @@
 #define SMART_NAME "smart"
 #define SMART_VERSION	"1.0.0"
 
-const char *pn;
+extern bool do_debug;
+
+static const char *pn;
 bool do_debug = false;
-int debugset = 0;
+static int debugset = 0;
 
 static struct option opts[] = {
 	{ "help", no_argument, NULL, 'h' },
@@ -45,7 +47,7 @@ static struct option opts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-void
+static void
 usage(const char *name)
 {
 	printf("Usage: %s [-htxi] [-a attribute[,attribute]...] <device name>\n", name);
