@@ -1,5 +1,5 @@
 .\"
-.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2021-2026 Chuck Tuffli
 .\"
@@ -32,7 +32,7 @@
 .Sh NAME
 .Nm smart ,
 .Nm diskhealth
-.Nd "retrieve health / SMART data from a device"
+.Nd monitor disk health from a storage device via SMART
 .Sh SYNOPSIS
 .Nm
 .Op Fl dhitvx
@@ -138,7 +138,6 @@ does not include threshold values, and as a result, the command will
 ignore the
 .Fl Fl threshold
 option.
-
 .Pp
 The following options are available:
 .Bl -tag -width "-d argument"
@@ -167,7 +166,6 @@ Print the values in hexadecimal.
 An explicit device path (
 .Pa /dev/ada0
 ) or GEOM provider (
-.Bl -tag -width "ada0" -compact
 .Pa ada0
 ).
 .El
@@ -175,27 +173,24 @@ An explicit device path (
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-.Pp
-.Dl "# smart -t ada0"
-.Bd -offset indent -compact
 Print all SMART READ DATA and SMART STATUS including the
 threshold values for ATA drive ada0.
+.Pp
+.Dl # smart -t ada0
 .Ed
 .Pp
-.Dl "# smart -a 5 ada0
-.Bd -offset indent -compact
 Print only attribute ID 5 ("Reallocated Sectors Count") for
 ATA drive ada0.
+.Pp
+.Dl # smart -a 5 ada0
 .Ed
 .Pp
-.Dl "# smart -a 5,171 ada0
-.Bd -offset indent -compact
 Print attribute IDs 5 ("Reallocated Sectors Count") and 171
 ("SSD Program Fail") for ATA drive ada0.
+.Pp
+.Dl # smart -a 5,171 ada0
 .Ed
 .Pp
-.Dl "# smart da0"
-.Bd -offset indent -compact
 Print all health pages supported by SCSI device da0 including:
 .Bl -dash -compact -offset indent
 .It
@@ -213,14 +208,16 @@ Temperature
 .It
 Start-stop Cycles
 .It
-Informational Exceptions 
+Informational Exceptions
 .El
+.Pp
+.Dl # smart da0
 .Ed
 .Pp
-.Dl "# smart -x nda0"
-.Bd -offset indent -compact
 Print all Health log page entries in hexadecimal for NVMe
 device nda0.
+.Pp
+.Dl # smart -x nda0
 .Ed
 .Sh DIAGNOSTICS
 The command may fail for one of the following reasons:
@@ -247,7 +244,7 @@ driver.
 .Xr nvd 4
 .Sh AUTHORS
 This
-manual page was written by
+utility was written by
 .An Chuck Tuffli Aq Mt chuck@FreeBSD.org .
 .Sh BUGS
 Probably.
