@@ -163,11 +163,11 @@ Print the version and copyright.
 .It Fl x , Fl Fl hex
 Print the values in hexadecimal.
 .It Ar device
-An explicit device path (
-.Pa /dev/ada0
-) or GEOM provider (
-.Pa ada0
-).
+An explicit device path
+.Pq Pa /dev/ada0
+or GEOM provider
+.Pq Pa ada0
+.
 .El
 .El
 .Sh EXIT STATUS
@@ -177,19 +177,19 @@ Print all SMART READ DATA and SMART STATUS including the
 threshold values for ATA drive ada0.
 .Pp
 .Dl # smart -t ada0
-.Ed
+.Pps
 .Pp
 Print only attribute ID 5 ("Reallocated Sectors Count") for
 ATA drive ada0.
 .Pp
 .Dl # smart -a 5 ada0
-.Ed
+.Pps
 .Pp
 Print attribute IDs 5 ("Reallocated Sectors Count") and 171
 ("SSD Program Fail") for ATA drive ada0.
 .Pp
 .Dl # smart -a 5,171 ada0
-.Ed
+.Pps
 .Pp
 Print all health pages supported by SCSI device da0 including:
 .Bl -dash -compact -offset indent
@@ -212,13 +212,13 @@ Informational Exceptions
 .El
 .Pp
 .Dl # smart da0
-.Ed
+.Pps
 .Pp
 Print all Health log page entries in hexadecimal for NVMe
 device nda0.
 .Pp
 .Dl # smart -x nda0
-.Ed
+.Pps
 .Sh DIAGNOSTICS
 The command may fail for one of the following reasons:
 .Bl -diag
