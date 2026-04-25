@@ -1,5 +1,12 @@
 This file documents changes for smart releases
 
+version 1.0.2
+ - Bring man page up to snuff
+ - Fix various complier warnings
+
+version 1.0.1
+ - Fix don't print attribute ID with description
+
 version 1.0.0
  - Fix ATA threshold output (gh-10). This is a breaking change as it
    reduces the output from 4 fields to 3 (drops the "reserved" byte
