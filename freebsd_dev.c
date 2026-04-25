@@ -536,7 +536,7 @@ __device_info_ata(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	}
 
 	sinfo = &fsmart->common.info;
-	
+
 	sinfo->supported = cgd->ident_data.support.command1 &
 		ATA_SUPPORT_SMART;
 
@@ -664,7 +664,7 @@ __device_info_nvme(struct fbsd_smart *fsmart, struct ccb_getdev *cgd)
 	}
 
 	sinfo = &fsmart->common.info;
-	
+
 	sinfo->supported = true;
 
 	ccb = cam_getccb(fsmart->camdev);

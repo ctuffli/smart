@@ -624,7 +624,7 @@ __smart_map_ata_thresh(uint8_t *b)
  * The format for the READ DATA buffer is:
  *    2 bytes Revision
  *  360 bytes Attributes (12 bytes each)
- *   
+ *
  * Each attribute consists of:
  *   1 byte ID
  *   2 byte Status Flags
@@ -893,7 +893,7 @@ __smart_map_scsi_err_page(smart_map_t *sm, void *b)
 
 		a++;
 	}
-	
+
 	sm->count = a;
 }
 
@@ -940,7 +940,7 @@ __smart_map_scsi_last_err(smart_map_t *sm, void *b)
 
 		a++;
 	}
-	
+
 	sm->count = a;
 }
 
@@ -1349,7 +1349,7 @@ __smart_read_pages(smart_h h, smart_buf_t *sb)
 		if (rc) {
 			dprintf("bad read (%d) from page %#x (bytes=%lu)\n", rc,
 					plist->pages[p].id, plist->pages[p].bytes);
-			break; 
+			break;
 		}
 
 		buf += plist->pages[p].bytes;

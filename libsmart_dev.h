@@ -25,7 +25,7 @@
  * Although opaque to the user, the handle must be a pointer to a structure
  * with the first member being struct smart_s. The remaining members are OS
  * specific and are not used by the library.
- * 
+ *
  * @param protocol The desired protocol or "auto" to automatically detect it
  * @param devname  The device name to open
  *
