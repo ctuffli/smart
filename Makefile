@@ -18,6 +18,7 @@ SRCS=	smart.c libsmart.c libsmart_desc.c
 SRCS+=	freebsd_dev.c
 LIBADD= cam xo
 MAN=smart.8
+MLINKS=	smart.8 diskhealth.8
 #CFLAGS+= -ggdb -O0
 CFLAGS+= -DLIBXO
 LINKS= ${BINDIR}/smart ${BINDIR}/diskhealth
