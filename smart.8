@@ -121,7 +121,7 @@ Last N Errors (Page ID 7 / 0x7)
 .It
 Temperature (Page ID 13 / 0xd)
 .It
-Start-stop Cycles (Page ID 14 / 0x3)
+Start-stop Cycles (Page ID 14 / 0xe)
 .It
 Informational Exceptions (Page ID 47 / 0x2f)
 .El
@@ -177,19 +177,16 @@ Print all SMART READ DATA and SMART STATUS including the
 threshold values for ATA drive ada0.
 .Pp
 .Dl # smart -t ada0
-.Pps
 .Pp
 Print only attribute ID 5 ("Reallocated Sectors Count") for
 ATA drive ada0.
 .Pp
 .Dl # smart -a 5 ada0
-.Pps
 .Pp
 Print attribute IDs 5 ("Reallocated Sectors Count") and 171
 ("SSD Program Fail") for ATA drive ada0.
 .Pp
 .Dl # smart -a 5,171 ada0
-.Pps
 .Pp
 Print all health pages supported by SCSI device da0 including:
 .Bl -dash -compact -offset indent
@@ -212,13 +209,11 @@ Informational Exceptions
 .El
 .Pp
 .Dl # smart da0
-.Pps
 .Pp
 Print all Health log page entries in hexadecimal for NVMe
 device nda0.
 .Pp
 .Dl # smart -x nda0
-.Pps
 .Sh DIAGNOSTICS
 The command may fail for one of the following reasons:
 .Bl -diag
