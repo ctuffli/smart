@@ -709,8 +709,6 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 {
 	struct ata_params ident_data;
 	union ccb *ccb = NULL;
-	struct ata_pass_16 *ata_pass_16;
-	struct ata_cmd ata_cmd;
 	int32_t rc = -1;
 
 	ccb = cam_getccb(fsmart->camdev);
@@ -741,11 +739,6 @@ __device_info_tunneled_ata(struct fbsd_smart *fsmart)
 			/*sense_len*/	SSD_FULL_SIZE,
 			/*timeout*/	5000
 			);
-
-	ata_pass_16 = (struct ata_pass_16 *)ccb->csio.cdb_io.cdb_bytes;
-	ata_cmd.command = ata_pass_16->command;
-	ata_cmd.control = ata_pass_16->control;
-	ata_cmd.features = ata_pass_16->features;
 
 	rc = cam_send_ccb(fsmart->camdev, ccb);
 	if (rc != 0) {
